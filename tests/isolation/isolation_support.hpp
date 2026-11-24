@@ -6,6 +6,7 @@
 #define PRAENORA_TESTS_ISOLATION_ISOLATION_SUPPORT_HPP
 
 #include "discovery/manifest.hpp"
+#include "isolation/channel.hpp"
 #include "isolation/child_module.hpp"
 #include "loader/loaded_module.hpp"
 
@@ -14,6 +15,7 @@
 #include "scoped_environment.hpp"
 
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -98,6 +100,36 @@ inline std::string read_within(int descriptor, std::chrono::milliseconds limit, 
         }
         text.append(buffer, static_cast<std::size_t>(got));
     }
+}
+
+// How many bytes the runtime's channel to a module host may take before a write blocks, as this
+// host sets the buffers of a socket pair made like the runtime's own, counted generously: twice
+// the send buffer of one end (Linux keeps the double of the value it reports) and the receive
+// buffer of the other, for a write from the first to the second. A stock Linux or macOS host takes
+// some hundreds of KiB; a host tuned for throughput (net.core.wmem_default of megabytes, such as
+// the cluster Rivanna's 16 MiB) takes tens of MiB, more than a test's fixed payload.
+inline std::size_t channel_buffer_bytes() {
+    const auto ends = detail::open_channel_pair();
+    const auto option_of = [](int end, int option) {
+        int value = 0;
+        socklen_t size = sizeof value;
+        return ::getsockopt(end, SOL_SOCKET, option, &value, &size) == 0 && value > 0
+                   ? static_cast<std::size_t>(value)
+                   : std::size_t{0};
+    };
+    const std::size_t total =
+        2 * option_of(ends.first, SO_SNDBUF) + option_of(ends.second, SO_RCVBUF);
+    ::close(ends.first);
+    ::close(ends.second);
+    return total;
+}
+
+// A size for a payload that the channel's buffers cannot take whole: `at_least`, or more when this
+// host's buffers need more (twice what channel_buffer_bytes() counts, and a little over), so a
+// write of it blocks until the peer reads.
+inline std::size_t beyond_the_channel_buffers(std::size_t at_least) {
+    const std::size_t buffers = channel_buffer_bytes();
+    return at_least > 2 * buffers ? at_least : 2 * buffers + (std::size_t{1} << 16);
 }
 
 // Waits up to `limit` until process_gone(pid).

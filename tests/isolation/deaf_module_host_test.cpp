@@ -85,10 +85,27 @@ bool has_event(const CapturedLogs& logs, const std::string& event) {
     return false;
 }
 
-// fx-echo's create document with a parameter of 1 MiB: far more than the channel's buffers take.
+// The padding, in bytes, of a call's document that this host's channel cannot take whole (1 MiB on
+// a stock Linux or macOS host, where the buffers are some hundreds of KiB), or 0 when no document
+// that a call may carry is that large: a call's frame is limited to 4 MiB, and a host tuned for
+// throughput (Rivanna's net.core.wmem_default is 16 MiB) takes such a document in its buffers, so
+// the write never blocks. The tests that need a write that stalls skip then.
+std::size_t stalling_pad() {
+    const std::size_t pad = praenora::test::beyond_the_channel_buffers(std::size_t{1} << 20);
+    return pad <= (std::size_t{3} << 20) ? pad : 0;
+}
+
+std::string no_stalling_write() {
+    return "the channel's buffers (" + std::to_string(praenora::test::channel_buffer_bytes()) +
+           " bytes) take any document a call may carry, so a write to a module host that "
+           "does not read never blocks here";
+}
+
+// fx-echo's create document with a parameter of stalling_pad() bytes: more than the channel's
+// buffers take.
 std::string large_create_document() {
     return praenora::test::create_document("fx-echo",
-                                           {{"pad", std::string(std::size_t{1} << 20, 'p')}});
+                                           {{"pad", std::string(stalling_pad(), 'p')}});
 }
 
 } // namespace
@@ -123,6 +140,9 @@ TEST(Isolation, ACallTheModuleHostDoesNotTakeEndsAtItsDeadlineAndGrace) {
 // at once, long before the call's deadline: the module host, which has not seen the call, is
 // killed, and the call ends cancelled (a run ends stopped).
 TEST(Isolation, AStopReachesACallTheModuleHostDoesNotTake) {
+    if (stalling_pad() == 0) {
+        GTEST_SKIP() << no_stalling_write();
+    }
     const FakeModuleHost fake("deaf-after-load");
     CapturedLogs logs;
     const auto module = LoadedModule::load_in_child(
@@ -149,10 +169,10 @@ TEST(Isolation, AStopReachesACallTheModuleHostDoesNotTake) {
 }
 
 // Ending a module host while the runtime writes it an answer of the shared compiled models (8 MiB,
-// which it does not take) ends within the wait given: with the answer's own wait longer than it,
-// the module host is killed when the wait passes; with it shorter, the answer's timeout already
-// ends the module host, although it was being ended, and a warning says why
-// (module_host.terminated, with the problem).
+// more where the channel's buffers are larger, which it does not take) ends within the wait given:
+// with the answer's own wait longer than it, the module host is killed when the wait passes; with
+// it shorter, the answer's timeout already ends the module host, although it was being ended, and a
+// warning says why (module_host.terminated, with the problem).
 TEST(Isolation, EndingAModuleHostThatDoesNotTakeAStoreAnswerEnds) {
     struct Case {
         const char* name;
@@ -179,7 +199,7 @@ TEST(Isolation, EndingAModuleHostThatDoesNotTakeAStoreAnswerEnds) {
         provider.services = {praenora::detail::ServiceVersion{"test.echo", 0, 0}};
         praenora::detail::compiled_model_store().save(
             {provider.manifest->name, provider.library_sha256}, "deaf",
-            std::string(std::size_t{8} << 20, 'd'));
+            std::string(praenora::test::beyond_the_channel_buffers(std::size_t{8} << 20), 'd'));
         ChildSettings settings = praenora::test::child_settings(logs);
         settings.providers = {provider};
         settings.share_compiled_models = true;
@@ -217,11 +237,14 @@ TEST(Isolation, EndingAModuleHostThatDoesNotTakeAStoreAnswerEnds) {
 // that as a failure: a warning (teardown.skipped) says what was left undone, the step ends
 // destroyed, and the run's health is not unhealthy.
 TEST(Isolation, AStopDuringACallTheModuleHostDoesNotTakeEndsTheRunWithoutAFailedTeardown) {
+    if (stalling_pad() == 0) {
+        GTEST_SKIP() << no_stalling_write();
+    }
     const FakeModuleHost fake("deaf-at-invoke");
     const ScratchDir dir;
     const fs::path log = dir.path() / "run.log";
     praenora::test::write_text_file(dir.path() / "source.json",
-                                    json{{"pad", std::string(std::size_t{1} << 20, 'p')}}.dump());
+                                    json{{"pad", std::string(stalling_pad(), 'p')}}.dump());
     const fs::path config = dir.path() / "workflow.yaml";
     praenora::test::write_text_file(config,
                                     "kind: workflow-config\n"

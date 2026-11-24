@@ -61,10 +61,32 @@ const std::vector<FrameKind>& all_kinds() {
     return kinds;
 }
 
+// The most that a test's socket buffers may hold: a socket whose buffers are larger is limited to
+// it. The tests write entries of 1 to 4 MiB to a peer that does not read and expect the write to
+// block, so a host whose default buffers take such an entry whole (Linux tuned for throughput:
+// Rivanna's net.core.wmem_default and rmem_default are 16 MiB) would make them fail without a
+// fault in the channel. A host with smaller defaults (stock Linux: 208 KiB; macOS: 8 KiB) keeps
+// them.
+constexpr int kMostBufferBytes = 256 << 10;
+
+void limit_buffers(int descriptor) {
+    for (const int option : {SO_SNDBUF, SO_RCVBUF}) {
+        int current = 0;
+        socklen_t size = sizeof current;
+        if (::getsockopt(descriptor, SOL_SOCKET, option, &current, &size) == 0 &&
+            current > kMostBufferBytes) {
+            const int limit = kMostBufferBytes;
+            ASSERT_EQ(::setsockopt(descriptor, SOL_SOCKET, option, &limit, sizeof limit), 0);
+        }
+    }
+}
+
 // A connected pair of channel ends.
 struct Pair {
     Pair() {
         const auto ends = open_channel_pair();
+        limit_buffers(ends.first);
+        limit_buffers(ends.second);
         a = std::make_unique<Channel>(ends.first);
         b = std::make_unique<Channel>(ends.second);
     }

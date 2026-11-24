@@ -635,7 +635,9 @@ TEST(Isolation, AModuleHostThatDoesNotTakeTheStoresAnswerIsEnded) {
     const praenora::test::ScopedEnvironment fake("PRAENORA_TEST_FAKE_MODULE_HOST", "store-deaf");
     CapturedLogs logs;
     praenora::detail::compiled_model_store().save(store_namespace(logs), "deaf",
-                                                  std::string(std::size_t{8} << 20, 'd'));
+                                                  std::string(praenora::test::beyond_the_channel_buffers(
+                                                                  std::size_t{8} << 20),
+                                                              'd'));
     ChildSettings settings = praenora::test::child_settings(logs);
     settings.providers = {test_store(logs)};
     settings.share_compiled_models = true;
