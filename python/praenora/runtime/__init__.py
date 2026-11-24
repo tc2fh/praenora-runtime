@@ -292,8 +292,8 @@ class Workflow:
             MODULE_HOST_UNAVAILABLE.
 
     The control calls (start, tick, run and close) are made one at a time. The queries (state,
-    fingerprint, status, metrics, latest_outputs and run_record) and request_stop() may be called
-    from any thread at any time, also while a control call runs.
+    fingerprint, status, metrics, latest_outputs, run_record and diagnostics) and request_stop()
+    may be called from any thread at any time, also while a control call runs.
     """
 
     def __init__(self, config, module_paths=None, output_dir=None, seed=None, log_level=None, *,

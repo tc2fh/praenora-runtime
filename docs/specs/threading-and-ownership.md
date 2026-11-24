@@ -176,8 +176,8 @@ when its `finalize` or `destroy` is refused (event `instance.kept`). The rationa
   `INVALID_STATE` without touching the run, except `close()`, which then only requests a stop.
 - The queries (`state`, `status`, `status_json`, `metrics_json`, `latest_outputs_json`,
   `run_record_json`, `fingerprint`, `output_dir`, `diagnostics`) and `request_stop()` MAY be
-  called from any thread at any time, also during a control call. Status and metrics come from a copy guarded by a mutex,
-  so a query never waits for a module call. `request_stop()` is lock-free and async-signal-safe.
+  called from any thread at any time, also during a control call. Status and metrics come from a
+  copy guarded by a mutex, so a query never waits for a module call. `request_stop()` is lock-free and async-signal-safe.
 - Destructors never throw. A `Workflow` MUST NOT be destroyed while another thread still calls it.
 - The Python bindings release the interpreter lock during their long calls, so another Python thread
   can query the status or request a stop during `run()`
