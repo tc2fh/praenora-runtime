@@ -494,6 +494,12 @@ foreach(consumer IN ITEMS consumer-module consumer-app)
         "${CMAKE_COMMAND}" --build "${consumer_dir}" ${config_args})
     message(STATUS "step 2: ${consumer} built against ${package_dir}")
 endforeach()
+# These projects enable no language: a compiler check fails in the one whose directory name ends in
+# -NOTFOUND (with the Visual Studio generator), and CMake searches <prefix>/lib64/cmake only once a
+# language is enabled. So they name the installed package's directory (Praenora_DIR, with the
+# build's own LIBDIR) instead of leaving it to a search of the prefix, which would not find an
+# installation made to lib64, as GNUInstallDirs does on Fedora, RHEL, Rocky and openSUSE. The
+# consumers above search the prefix.
 # A project that requires an unknown component fails to configure, and the reason the package
 # gives names that component and the package's components. The unknown component is the last one
 # each project names. Off and Frobnicator-NOTFOUND are named like CMake false constants: if()
@@ -507,7 +513,7 @@ foreach(components IN ITEMS "Runtime Frobnicator" "Off" "Runtime Frobnicator-NOT
         "find_package(Praenora 0.2 REQUIRED COMPONENTS ${components})\n")
     # The command is run and, on a failure, shown from this one list.
     set(unknown_command "${CMAKE_COMMAND}" -S "${unknown_dir}" -B "${unknown_dir}/build"
-        -C "${settings_file}" ${generator_args})
+        -C "${settings_file}" "-DPraenora_DIR=${package_dir}" ${generator_args})
     praenora_test_run(UNKNOWN "step 2: an unknown component (${components})"
         "${unknown_command}")
     # CMake wraps the reason's lines.
@@ -541,7 +547,7 @@ file(WRITE "${optional_dir}/CMakeLists.txt" "cmake_minimum_required(VERSION 3.24
     "endif()\n")
 _run(OPTIONAL "step 2: an unknown optional component"
     "${CMAKE_COMMAND}" -S "${optional_dir}" -B "${optional_dir}/build" -C "${settings_file}"
-    ${generator_args})
+    "-DPraenora_DIR=${package_dir}" ${generator_args})
 message(STATUS "step 2: requiring Runtime, with the optional component Frobnicator-NOTFOUND: "
     "Praenora is found, with Praenora::Runtime alone")
 # A project that names no component gets both.
@@ -554,7 +560,7 @@ file(WRITE "${none_dir}/CMakeLists.txt" "cmake_minimum_required(VERSION 3.24)\n"
     "endif()\n")
 _run(NONE "step 2: no component"
     "${CMAKE_COMMAND}" -S "${none_dir}" -B "${none_dir}/build" -C "${settings_file}"
-    ${generator_args})
+    "-DPraenora_DIR=${package_dir}" ${generator_args})
 message(STATUS "step 2: naming no component gives Praenora::Runtime and Praenora::ModuleSDK")
 # consumer-module installs its module with the installed praenora_add_module()
 # (INSTALL_DESTINATION), into a prefix of its own: its manifest and library, side by side.
