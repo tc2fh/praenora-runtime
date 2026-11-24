@@ -138,7 +138,6 @@
         }
       }
     },
-    "inputs": {},
     "outputs": {
       "result": {
         "file": "outputs/result.jsonl",

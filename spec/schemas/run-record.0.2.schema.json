@@ -238,7 +238,6 @@
         "overrides",
         "validation",
         "manifests",
-        "inputs",
         "isolation"
       ],
       "additionalProperties": false,
