@@ -1,0 +1,5 @@
+series_id,variable_id,time,value
+S1,x,0.5,1
+S1,x,-2.0,2
+S1,x,-1.0,3
+S1,x,1.5,4

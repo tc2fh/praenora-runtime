@@ -229,6 +229,7 @@ TEST(Fingerprint, ReproducibilitySectionMatchesTheRunRecordSchema) {
           {"overrides", json::object()},
           {"validation", "strict"},
           {"manifests", workflow.manifest_locations},
+          {"inputs", workflow.input_counts},
           {"isolation", workflow.isolation}}}};
     const auto& schema = praenora::detail::SchemaRegistry::builtin().for_kind(
         "run-record", praenora::detail::parse_semver("0.2.0"));
@@ -414,6 +415,7 @@ TEST(Fingerprint, RecordsTheServicesOfTheRunAndTheirProviders) {
           {"overrides", json::object()},
           {"validation", "strict"},
           {"manifests", workflow.manifest_locations},
+          {"inputs", workflow.input_counts},
           {"isolation", workflow.isolation}}}};
     const auto& schema = praenora::detail::SchemaRegistry::builtin().for_kind(
         "run-record", praenora::detail::parse_semver("0.2.0"));

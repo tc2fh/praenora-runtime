@@ -104,7 +104,7 @@ as `a/b` names both parties that commonly own the fix; `none` marks codes that r
 | 704 | `INPUT_MISSING` | execution | 1 | runtime | no | A required input message was not available when a step ran. |
 | 705 | `RUN_STOPPED` | cancelled | 130 | none | no | The run was stopped on request. |
 | 706 | `MODULE_CRASHED` | execution | 1 | module | no | A module host ended (a signal or an exit) or broke its channel's protocol during a load or a call into its module. |
-| 800 | `TARGET_DATA_INVALID` | data | 1 | user data | no | Target data is malformed or breaks the observation rules. |
+| 800 | `TARGET_DATA_INVALID` | data | 1 | user data | no | Target data is malformed or breaks the observation rules; with severity warning, a finding about data that is still accepted (rows before `run.time.start`, never delivered). |
 | 801 | `TARGET_DATA_UNAVAILABLE` | data | 1 | environment | yes | Target data could not be read, for example because its file does not exist. |
 
 Notes on the table:
@@ -165,7 +165,8 @@ Notes on the table:
   included), the call that was running when it ends during a call, and the next call when it ends
   between calls.
 - `TARGET_DATA_INVALID` exits with 1 when a run meets it and with 3 when validation finds it, like
-  every error of a validation report. `TARGET_DATA_UNAVAILABLE` is found only by validation, so the
+  every error of a validation report. As a warning (rows before `run.time.start`) it changes no exit
+  code: the tool prints it to standard error and the exit code stays 0. `TARGET_DATA_UNAVAILABLE` is found only by validation, so the
   CLI exits with 3 for it.
 - Retryable means that retrying the same operation unchanged may succeed: `RESOURCE_EXHAUSTED`,
   `TIMEOUT`, `IO_ERROR`, `STEP_TIMEOUT` and `TARGET_DATA_UNAVAILABLE`. A retry of a run is a new run

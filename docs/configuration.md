@@ -161,6 +161,8 @@ observation rows of [specs/protocol.md](specs/protocol.md#message-types), the co
 | `lower_limit`, `upper_limit` | no | Decimal numbers. |
 | `weight` | no | A number of at least 0; default 1. |
 
+Rows whose `time` is before the run's `time.start` lie in no window and are never delivered; validation counts them and reports one warning for the input (`TARGET_DATA_INVALID`, severity warning, at the first of them in the file; the configuration stays valid), and the run record's `execution.inputs.<input>` holds the counts ([specs/reproducibility.md](specs/reproducibility.md#run-record)).
+
 Other columns are ignored. Numbers are read the same way whatever the process's locale; infinities,
 NaN and surrounding spaces are refused. A row that breaks a rule is `TARGET_DATA_INVALID`, naming
 the file and line; a data file that does not exist, is not a file or cannot be read (a directory on

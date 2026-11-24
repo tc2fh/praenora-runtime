@@ -794,6 +794,7 @@ std::unique_ptr<Workflow> Runtime::open(const std::string& config_path,
     }
     auto impl = std::make_unique<Workflow::Impl>(impl_->context, std::move(*workflow), logging,
                                                  options.overwrite);
+    impl->diagnostics = std::move(report);
     return std::unique_ptr<Workflow>(new Workflow(std::move(impl)));
 }
 

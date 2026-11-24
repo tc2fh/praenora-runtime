@@ -38,7 +38,8 @@ const std::string kUsage =
     "inputs are exhausted, a step fails or a signal stops it (SIGINT or SIGTERM, such as Ctrl+C;\n"
     "a second one ends the process at once; one that the tool started with ignored, as for a\n"
     "command run in the background by a shell, stays ignored). Prints the run fingerprint, the\n"
-    "ticks completed and the output directory.\n"
+    "ticks completed and the output directory. Warnings that validation found (the configuration\n"
+    "is still valid, as for data rows before the run's start) go to standard error.\n"
     "Exit codes: 0 completed, 130 stopped, otherwise the failure's (for example 1 for a step that\n"
     "failed, 5 for a timeout, 3 when the configuration is invalid).\n"
     "\n"
@@ -75,6 +76,10 @@ json summary_json(const Workflow& workflow, const RunSummary& summary) {
     const std::string& dir = workflow.output_dir();
     json result = frontend::run_summary_json(summary);
     result["output_dir"] = dir.empty() ? json(nullptr) : json(dir);
+    // The warnings and notes of the validation that opened the run, as validate gives them.
+    if (!workflow.diagnostics().diagnostics.empty()) {
+        result["diagnostics"] = json::parse(workflow.diagnostics().to_json()).at("diagnostics");
+    }
     return result;
 }
 
@@ -131,6 +136,9 @@ int command_run(const std::vector<std::string>& args) {
             const Runtime runtime(runtime_settings);
             const std::unique_ptr<Workflow> workflow =
                 runtime.open(arguments.positionals().front(), options);
+            if (!workflow->diagnostics().diagnostics.empty()) {
+                std::cerr << workflow->diagnostics().to_text(); // the warnings and notes
+            }
             const Watching watching(stop, *workflow);
             RunSummary summary;
             try {

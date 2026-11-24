@@ -9,15 +9,37 @@
 
 #include <nlohmann/json.hpp>
 
+#include <praenora/runtime/error.hpp>
+
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 
 namespace praenora::detail {
+
+// What a replay source found in its data while it was built, for the run record's
+// execution.inputs.<input> (outside the hashed section: both numbers follow from the file's bytes
+// and the configuration, which the fingerprint covers already).
+struct SourceCounts {
+    std::uint64_t rows_total = 0;        // the rows of the file
+    std::uint64_t rows_before_start = 0; // rows whose time is before run.time.start: never delivered
+};
 
 class InputSource {
 public:
     virtual ~InputSource();
+
+    // What the source noticed while it was built and that is no reason to refuse its data: each a
+    // Diagnostic of severity warning, which validation adds to its report. One diagnostic per
+    // kind of finding, naming how many rows it concerns and the first of them, so that a file of
+    // a million such rows gives one line. Empty by default.
+    virtual const std::vector<Diagnostic>& notes() const;
+
+    // The counts of the source's data, or nullopt for a source that has no rows (a
+    // json-document). Validation puts them into execution.inputs of the run record.
+    virtual const std::optional<SourceCounts>& counts() const;
 
     // The `data` of the input's message for tick `tick`, whose window is
     // [window_start, window_end) in the workflow's time unit.

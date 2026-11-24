@@ -6,6 +6,16 @@ namespace praenora::detail {
 
 InputSource::~InputSource() = default;
 
+const std::vector<Diagnostic>& InputSource::notes() const {
+    static const std::vector<Diagnostic> none;
+    return none;
+}
+
+const std::optional<SourceCounts>& InputSource::counts() const {
+    static const std::optional<SourceCounts> none;
+    return none;
+}
+
 std::unique_ptr<InputSource> make_input_source(const InputBinding& binding,
                                                const MessageTypeDef& port_type,
                                                const TimeBase& time) {

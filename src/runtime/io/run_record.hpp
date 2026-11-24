@@ -50,6 +50,8 @@ void prepare_output_dir(const std::filesystem::path& dir, bool overwrite);
 //                  error record), "platform": {"os", "arch", "compiler", "build_type"},
 //                  "overrides": {"seed"?, "ticks"?, "isolation"?}, "validation": "strict"|"off",
 //                  "manifests": {"steps", "services"} (where each manifest was found),
+//                  "inputs": {<input>: {"rows_total", "rows_before_start"}} (what each replay
+//                  source found in its data),
 //                  "isolation": {<step>: {"mode", "share_compiled_models"}} (how each step's
 //                  instance was isolated), and
 //                  at the end "final_status" (the final status snapshot), "outputs" and
@@ -64,7 +66,8 @@ class RunRecordWriter {
 public:
     // `output_dir` holds run-record.json; when it is empty, the record is kept in memory only.
     // `manifests` is execution.manifests (ValidatedWorkflow::manifest_locations), `isolation`
-    // execution.isolation (ValidatedWorkflow::isolation). `overrides` are
+    // execution.isolation (ValidatedWorkflow::isolation), `inputs` execution.inputs
+    // (ValidatedWorkflow::input_counts). `overrides` are
     // the run settings the caller overrode; `strict_validation` tells whether payloads are
     // validated against their message types ("strict") or not ("off"). `anchors` are the
     // directories of the run (PathAnchors) that its error records name by placeholders; without
@@ -73,7 +76,8 @@ public:
     RunRecordWriter(std::filesystem::path output_dir, nlohmann::json reproducibility,
                     std::string fingerprint, nlohmann::json manifests, nlohmann::json isolation,
                     RunOverrides overrides = {}, bool strict_validation = true,
-                    std::shared_ptr<const PathAnchors> anchors = nullptr);
+                    std::shared_ptr<const PathAnchors> anchors = nullptr,
+                    nlohmann::json inputs = nlohmann::json::object());
 
     // The record of a run that has just started (status running). Throws
     // praenora::Error(IO_ERROR) when the file cannot be written (current() is updated anyway).

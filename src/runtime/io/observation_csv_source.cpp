@@ -259,6 +259,7 @@ public:
         digest_ = sha256_hex(bytes);
         const CsvTable table = parse_csv(bytes, origin);
         rows_ = RowReader(table, binding, origin).rows();
+        count_rows(binding.input, origin, time.start); // in file order, before the sort
         std::stable_sort(rows_.begin(), rows_.end(), [](const Row& a, const Row& b) {
             if (a.time != b.time) {
                 return a.time < b.time;
@@ -293,7 +294,43 @@ public:
 
     const std::string& digest() const override { return digest_; }
 
+    const std::vector<Diagnostic>& notes() const override { return notes_; }
+
+    const std::optional<SourceCounts>& counts() const override { return counts_; }
+
 private:
+    // Counts the rows and those whose time is before the run's start, which no window ever holds
+    // (batch() delivers from the first window's start on), and notes the latter as one warning
+    // that gives their number and the first of them in the file.
+    void count_rows(const std::string& input, const std::string& origin, double start) {
+        SourceCounts counts;
+        counts.rows_total = rows_.size();
+        const Row* first = nullptr;
+        for (const Row& row : rows_) {
+            if (row.time < start) {
+                ++counts.rows_before_start;
+                if (first == nullptr) {
+                    first = &row;
+                }
+            }
+        }
+        counts_ = counts;
+        if (first == nullptr) {
+            return;
+        }
+        Diagnostic note;
+        note.severity = Severity::warning;
+        note.code = ErrorCode::TARGET_DATA_INVALID;
+        note.location.file = origin;
+        note.location.line = first->line;
+        note.message = "input '" + input + "': " + std::to_string(counts.rows_before_start) +
+                       " of " + std::to_string(counts.rows_total) +
+                       " rows have a time before run.time.start (" + json(start).dump() + " " +
+                       time_unit_ + ") and are never delivered; the first is at CSV line " +
+                       std::to_string(first->line) + " (time " + json(first->time).dump() + ")";
+        notes_.push_back(std::move(note));
+    }
+
     json make_batch(double start, double end, json observations) const {
         json message = json::object();
         message["window"] = {{"start", start}, {"end", end}};
@@ -344,6 +381,8 @@ private:
 
     std::vector<Row> rows_;
     std::string time_unit_, digest_;
+    std::vector<Diagnostic> notes_;
+    std::optional<SourceCounts> counts_;
 };
 
 } // namespace

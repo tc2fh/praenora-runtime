@@ -321,6 +321,37 @@ praenora_add_cli_test(cli.run.missing_data
     EXPECT_EXIT 3
     EXPECT_STDERR_REGEX "workflow\\.yaml:9:[0-9]+: error\\[TARGET_DATA_UNAVAILABLE\\]")
 
+# Warnings of the validation: two rows of the data file are before the run's start, so validation
+# reports one warning (TARGET_DATA_INVALID, severity warning, at the first of them) and the
+# configuration is still valid. validate shows it, run shows it too (standard error, and
+# "diagnostics" in the JSON result), and the run record keeps the counts outside the hashed
+# section (execution.inputs) and is itself valid.
+set(_praenora_early_rows "${_praenora_cli_configs}/early-rows/workflow.yaml")
+praenora_add_cli_test(cli.validate.rows_before_start
+    CMD validate "${_praenora_early_rows}" ${_praenora_fixture_paths}
+    EXPECT_STDOUT_REGEX "valid \\(1 warning\\(s\\)\\)"
+    EXPECT_STDERR_REGEX
+        "obs\\.csv:3: warning\\[TARGET_DATA_INVALID\\].*2 of 4 rows have a time before run\\.time\\.start")
+praenora_add_cli_test(cli.validate.rows_before_start_json
+    CMD validate "${_praenora_early_rows}" ${_praenora_fixture_paths} --json
+    EXPECT_JSON_PATH ok result.ok result.diagnostics.0.severity result.diagnostics.0.name
+        result.diagnostics.0.location.line
+    EXPECT_JSON_VALUE true true warning TARGET_DATA_INVALID 3)
+set(_praenora_early_rows_out "${_praenora_cli_out}/early-rows")
+praenora_add_cli_test(cli.run.rows_before_start
+    CLEAN_DIR "${_praenora_early_rows_out}"
+    CMD run "${_praenora_early_rows}" ${_praenora_fixture_paths}
+        --output-dir "${_praenora_early_rows_out}" --json
+    EXPECT_JSON_PATH ok result.state result.diagnostics.0.severity result.diagnostics.0.name
+        result.diagnostics.0.location.line
+    EXPECT_JSON_VALUE true completed warning TARGET_DATA_INVALID 3
+    EXPECT_STDERR_REGEX "warning\\[TARGET_DATA_INVALID\\]"
+    EXPECT_FILE "${_praenora_early_rows_out}/run-record.json"
+    EXPECT_FILE_JSON_PATH execution.inputs.source.rows_total
+        execution.inputs.source.rows_before_start
+    EXPECT_FILE_JSON_VALUE 4 2
+    AFTER_CMD validate --document "${_praenora_early_rows_out}/run-record.json")
+
 # Service providers. fx-service requires test.echo@0, which the fixture provider test-echo serves
 # (configuration service/workflow.yaml). providers/old-runtime.provider.json is the manifest of a
 # provider built for runtime 0.0.1 and linux-x86_64, which no runtime of this repository can use,

@@ -105,7 +105,7 @@ archive per platform key with its `.sha256` file, made by the workflow of
 | `praenora modules check <manifest>` | The contract checks of a module ([module-developer-guide.md](module-developer-guide.md#contract-checks)), with the services its manifest declares served by their providers. `--vectors F` uses other test vectors. |
 | `praenora providers list` | Every service provider manifest on the provider search paths: the services each offers and whether the runtime can use it ([Finding service providers](#finding-service-providers)). |
 | `praenora graph <config>` or `--workflow <name>@<version>` | A workflow definition's schedule and connections: `--format text` (default), `json`, `dot` or `asyncapi`. |
-| `praenora run <config>` | Validates and runs a workflow. Options: `--ticks N`, `--seed S`, `--output-dir D`, `--overwrite`, `--trace`, `--status-file F`, `--isolation in-process\|process`. |
+| `praenora run <config>` | Validates and runs a workflow. Options: `--ticks N`, `--seed S`, `--output-dir D`, `--overwrite`, `--trace`, `--status-file F`, `--isolation in-process\|process`. Warnings that validation found (for example data rows before the run's start) go to standard error, and with `--json` into `result.diagnostics`; they do not stop the run. |
 | `praenora status <file>` | Prints the status file a run keeps. |
 | `praenora catalog list` / `catalog show <id>@<version>` | The protocol catalog's entries (`--kind workflows`, `capabilities` or `messages`), or one entry's document. |
 | `praenora schema list` / `schema show <kind>` | The embedded JSON Schemas; `--format-version V` picks a version. |

@@ -1,0 +1,4 @@
+{
+  "code": "SCHEMA_VIOLATION",
+  "pointer": "/execution/inputs/source/rows_total"
+}

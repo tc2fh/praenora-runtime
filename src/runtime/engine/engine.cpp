@@ -349,7 +349,7 @@ void Engine::open_output(std::int64_t started_at) {
         record_.emplace(dir ? *dir : fs::path(), workflow_.reproducibility, workflow_.fingerprint,
                         workflow_.manifest_locations, workflow_.isolation,
                         workflow_.config.overrides, settings_.validate_payloads,
-                        settings_.path_anchors);
+                        settings_.path_anchors, workflow_.input_counts);
         record_->write_started(started_at);
     }
     if (dir) {

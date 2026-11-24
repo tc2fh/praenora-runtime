@@ -1,0 +1,135 @@
+{
+  "kind": "run-record",
+  "format_version": "0.2.0",
+  "fingerprint": "9f2c4e1a7b3d5e60000000000000000000000000000000000000000000000000",
+  "reproducibility": {
+    "versions": {
+      "runtime": "0.2.0",
+      "abi": {
+        "major": 0,
+        "minor": 0
+      },
+      "pmp": "0.1.0"
+    },
+    "workflow": {
+      "name": "test.single",
+      "version": "0.1.0",
+      "digest": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+    },
+    "catalog": {
+      "test.blob@0.1.0": "efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef",
+      "test.echo@0.1.0": "0101010101010101010101010101010101010101010101010101010101010101"
+    },
+    "time": {
+      "unit": "1",
+      "start": 0.0,
+      "period": 1.0
+    },
+    "seed": 7,
+    "ticks": 3,
+    "timeouts": {
+      "invoke": "300s",
+      "lifecycle": "60s",
+      "cancel_grace": "5s"
+    },
+    "inputs": {
+      "source": {
+        "source": "json-document",
+        "digest": "2323232323232323232323232323232323232323232323232323232323232323"
+      }
+    },
+    "services": {
+      "test.echo@0": {
+        "minor": 0,
+        "provider": {
+          "name": "test-echo",
+          "version": "0.1.0",
+          "manifest_sha256": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+          "library_sha256": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+        },
+        "engine": {
+          "name": "test-echo-engine",
+          "version": "1.0.0"
+        }
+      }
+    },
+    "steps": {
+      "a": {
+        "capability": {
+          "id": "test.echo",
+          "version": "0.1.0"
+        },
+        "module": {
+          "name": "fx-echo",
+          "version": "0.1.0",
+          "manifest_sha256": "4545454545454545454545454545454545454545454545454545454545454545",
+          "library_sha256": "6767676767676767676767676767676767676767676767676767676767676767",
+          "sdk_version": "0.2.0"
+        },
+        "parameters": {},
+        "seed": 123456789,
+        "timeouts": {
+          "invoke": "300s",
+          "lifecycle": "60s",
+          "cancel_grace": "5s"
+        },
+        "services": [
+          "test.echo@0"
+        ]
+      }
+    }
+  },
+  "execution": {
+    "status": "completed",
+    "started_at": "2026-11-10T16:04:05.123456789Z",
+    "finished_at": "2026-11-10T16:04:05.123456789Z",
+    "final_status": {
+      "kind": "status-snapshot"
+    },
+    "ticks_completed": 3,
+    "error": null,
+    "platform": {
+      "os": "macos",
+      "arch": "arm64",
+      "compiler": "AppleClang 17.0.0",
+      "build_type": "Debug"
+    },
+    "overrides": {
+      "seed": 7
+    },
+    "validation": "strict",
+    "isolation": {
+      "a": {
+        "mode": "in-process",
+        "share_compiled_models": false,
+        "sandbox": "none"
+      }
+    },
+    "manifests": {
+      "steps": {
+        "a": {
+          "search_path": {
+            "origin": "caller",
+            "index": 0
+          },
+          "file": "fx-echo/fx-echo.pmm.json"
+        }
+      },
+      "services": {
+        "test.echo@0": {
+          "search_path": {
+            "origin": "installation"
+          },
+          "file": "test-echo/test-echo.provider.json"
+        }
+      }
+    },
+    "outputs": {
+      "result": {
+        "file": "outputs/result.jsonl",
+        "sha256": "8989898989898989898989898989898989898989898989898989898989898989",
+        "messages": 3
+      }
+    }
+  }
+}

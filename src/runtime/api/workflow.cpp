@@ -251,4 +251,6 @@ const std::string& Workflow::fingerprint() const noexcept { return impl_->engine
 
 const std::string& Workflow::output_dir() const noexcept { return impl_->output_dir; }
 
+const ValidationReport& Workflow::diagnostics() const noexcept { return impl_->diagnostics; }
+
 } // namespace praenora

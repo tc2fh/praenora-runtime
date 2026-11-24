@@ -238,6 +238,7 @@
         "overrides",
         "validation",
         "manifests",
+        "inputs",
         "isolation"
       ],
       "additionalProperties": false,
@@ -366,6 +367,30 @@
           },
           "additionalProperties": false,
           "description": "How each step's module instance was isolated, by step, every field resolved: mode in-process (in the runtime's process) or process (in a module host), whether its module host shared compiled models, and its sandbox profile. Outside the hashed section: it does not change the fingerprint."
+        },
+        "inputs": {
+          "type": "object",
+          "patternProperties": {
+            "^(?!(inputs|outputs)$)[a-z][a-z0-9_]*$": {
+              "type": "object",
+              "required": [
+                "rows_total",
+                "rows_before_start"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "rows_total": {
+                  "$ref": "#/definitions/count"
+                },
+                "rows_before_start": {
+                  "$ref": "#/definitions/count"
+                }
+              },
+              "description": "rows_total: the rows of the input's observation CSV; rows_before_start: those whose time is before run.time.start, which the replay never delivers."
+            }
+          },
+          "additionalProperties": false,
+          "description": "What each replay source (observation-csv) found in its data, by input; a json-document input has no entry. Outside the hashed section: the numbers follow from the file's bytes and the configuration, which the fingerprint covers."
         },
         "manifests": {
           "type": "object",

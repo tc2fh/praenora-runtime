@@ -94,7 +94,8 @@ void prepare_output_dir(const fs::path& dir, bool overwrite) {
 
 RunRecordWriter::RunRecordWriter(fs::path output_dir, json reproducibility, std::string fingerprint,
                                  json manifests, json isolation, RunOverrides overrides,
-                                 bool strict_validation, std::shared_ptr<const PathAnchors> anchors)
+                                 bool strict_validation, std::shared_ptr<const PathAnchors> anchors,
+                                 json inputs)
     : anchors_(std::move(anchors)) {
     if (sha256_hex(canonical_json(reproducibility)) != fingerprint) {
         throw Error(ErrorCode::INVALID_ARGUMENT,
@@ -133,7 +134,8 @@ RunRecordWriter::RunRecordWriter(fs::path output_dir, json reproducibility, std:
                    {"overrides", std::move(overridden)},
                    {"validation", strict_validation ? "strict" : "off"},
                    {"manifests", std::move(manifests)},
-                   {"isolation", std::move(isolation)}}}};
+                   {"isolation", std::move(isolation)},
+                   {"inputs", std::move(inputs)}}}};
 }
 
 void RunRecordWriter::write_started(std::int64_t started_unix_ns) {

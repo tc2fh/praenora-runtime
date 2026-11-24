@@ -459,3 +459,126 @@ TEST(JsonDocument, TypeMismatchIsInputBindingInvalid) {
         EXPECT_EQ(e.code(), ErrorCode::PARSE_ERROR) << e.what();
     }
 }
+
+// ---- What a source notices while it is built: notes() and counts() ----
+
+namespace {
+
+// An observation-csv source over `csv` for a run that starts at `start`.
+std::unique_ptr<InputSource> csv_source_from(const ScratchDir& dir, const std::string& csv,
+                                             double start) {
+    const fs::path file = dir.path() / "observations.csv";
+    write_text_file(file, csv);
+    TimeBase time = days();
+    time.start = start;
+    return make_input_source(csv_binding(file), observation_batch(), time);
+}
+
+} // namespace
+
+TEST(SourceNotes, RowsBeforeTheStartAreCountedAndNotedOnce) {
+    ScratchDir dir;
+    // Lines 2 to 5; the rows at lines 3 and 4 are before the start, the one at the start is not.
+    const auto source = csv_source_from(dir,
+                                        "series_id,variable_id,time,value\n"
+                                        "S1,x,1.0,1\n"
+                                        "S1,x,-1.0,2\n"
+                                        "S1,x,-2.0,3\n"
+                                        "S1,x,0.0,4\n",
+                                        0.0);
+    ASSERT_TRUE(source->counts().has_value());
+    EXPECT_EQ(source->counts()->rows_total, 4u);
+    EXPECT_EQ(source->counts()->rows_before_start, 2u);
+    ASSERT_EQ(source->notes().size(), 1u);
+    const praenora::Diagnostic& note = source->notes().front();
+    EXPECT_EQ(note.severity, praenora::Severity::warning);
+    EXPECT_EQ(note.code, ErrorCode::TARGET_DATA_INVALID);
+    // The first of them in the file, not in time order: the row at line 3.
+    EXPECT_EQ(note.location.line, 3);
+    EXPECT_EQ(note.location.file, praenora::detail::path_to_utf8(dir.path() / "observations.csv"));
+    EXPECT_NE(note.message.find("input 'observations'"), std::string::npos) << note.message;
+    EXPECT_NE(note.message.find("2 of 4 rows"), std::string::npos) << note.message;
+    EXPECT_NE(note.message.find("run.time.start (0.0 d)"), std::string::npos) << note.message;
+    EXPECT_NE(note.message.find("CSV line 3 (time -1.0)"), std::string::npos) << note.message;
+    // They are never delivered, as before: no window holds them.
+    EXPECT_EQ(times(source->batch(0, 0.0, 2.0)), (std::vector<double>{0.0, 1.0}));
+}
+
+TEST(SourceNotes, NoRowBeforeTheStartGivesNoNote) {
+    ScratchDir dir;
+    const auto source = csv_source_from(dir,
+                                        "series_id,variable_id,time,value\n"
+                                        "S1,x,0.0,1\n"
+                                        "S1,x,3.5,2\n",
+                                        0.0);
+    EXPECT_TRUE(source->notes().empty());
+    ASSERT_TRUE(source->counts().has_value());
+    EXPECT_EQ(source->counts()->rows_total, 2u);
+    EXPECT_EQ(source->counts()->rows_before_start, 0u);
+}
+
+TEST(SourceNotes, TheStartOfTheRunDecidesWhichRowsAreEarly) {
+    ScratchDir dir;
+    const std::string csv = "series_id,variable_id,time,value\n"
+                            "S1,x,1.0,1\n"
+                            "S1,x,5.0,2\n"
+                            "S1,x,9.0,3\n";
+    const auto late = csv_source_from(dir, csv, 5.0);
+    EXPECT_EQ(late->counts()->rows_before_start, 1u); // a row at the start is not early
+    EXPECT_EQ(late->notes().size(), 1u);
+    ScratchDir other;
+    const auto early = csv_source_from(other, csv, -10.0);
+    EXPECT_EQ(early->counts()->rows_before_start, 0u);
+    EXPECT_TRUE(early->notes().empty());
+}
+
+TEST(SourceNotes, ManyEarlyRowsGiveOneNote) {
+    ScratchDir dir;
+    std::string csv = "series_id,variable_id,time,value\n";
+    for (int i = 0; i < 2000; ++i) {
+        csv += "S1,x," + std::to_string(-1 - i) + ",1\n";
+    }
+    csv += "S1,x,1.0,1\n";
+    const auto source = csv_source_from(dir, csv, 0.0);
+    EXPECT_EQ(source->counts()->rows_total, 2001u);
+    EXPECT_EQ(source->counts()->rows_before_start, 2000u);
+    ASSERT_EQ(source->notes().size(), 1u); // one diagnostic for the kind, with its count
+    EXPECT_NE(source->notes().front().message.find("2000 of 2001 rows"), std::string::npos);
+    EXPECT_EQ(source->notes().front().location.line, 2);
+}
+
+TEST(SourceNotes, AnEmptyTableHasCountsOfZeroAndNoNote) {
+    ScratchDir dir;
+    const auto source = csv_source_from(dir, "series_id,variable_id,time,value\n", 0.0);
+    ASSERT_TRUE(source->counts().has_value());
+    EXPECT_EQ(source->counts()->rows_total, 0u);
+    EXPECT_EQ(source->counts()->rows_before_start, 0u);
+    EXPECT_TRUE(source->notes().empty());
+}
+
+TEST(SourceNotes, AJsonDocumentHasNeitherCountsNorNotes) {
+    ScratchDir dir;
+    const fs::path file = dir.path() / "doc.json";
+    write_text_file(file, "{\"a\": 1}\n");
+    InputBinding binding;
+    binding.input = "source";
+    binding.source = "json-document";
+    binding.path = file;
+    const auto source = make_input_source(binding, message_type("test.blob"), days());
+    EXPECT_FALSE(source->counts().has_value());
+    EXPECT_TRUE(source->notes().empty());
+}
+
+TEST(SourceNotes, ARefusedRowStaysAnErrorWhateverElseTheFileHolds) {
+    ScratchDir dir;
+    try {
+        (void)csv_source_from(dir,
+                              "series_id,variable_id,time,value\n"
+                              "S1,x,-5.0,1\n"
+                              "S1,x,abc,2\n",
+                              0.0);
+        ADD_FAILURE() << "no error";
+    } catch (const Error& e) {
+        EXPECT_EQ(e.code(), ErrorCode::TARGET_DATA_INVALID);
+    }
+}

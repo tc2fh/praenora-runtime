@@ -55,6 +55,7 @@ struct Workflow::Impl {
 
     std::shared_ptr<const detail::RuntimeContext> context;
     std::string output_dir; // absolute UTF-8 path; empty when the run writes no files
+    ValidationReport diagnostics; // the warnings and notes of the validation that opened the run
     std::unique_ptr<detail::LogHub> logs;
     detail::MetricsRegistry metrics;
     std::unique_ptr<detail::StatusFileWriter> status_file;

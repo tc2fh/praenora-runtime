@@ -1920,3 +1920,91 @@ TEST(Api, RunRecordNamesTheConfigurationDirectory_WhenTheStatusFileCannotBeWritt
                                        praenora::test::utf8_path(PRAENORA_TEST_MODULES_DIR)}));
     EXPECT_FALSE(contains(record.dump(), "<home>")) << record.dump();
 }
+
+namespace {
+
+// Writes `<dir>/obs.csv` (rows at times -2, -1, 0.5, 1.5 and 2.5) and `<dir>/replay.yaml`, a
+// configuration of test.single whose input reads that file, and returns its path.
+std::string write_replay_config(const fs::path& dir) {
+    write_text_file(dir / "obs.csv", "series_id,variable_id,time,value\n"
+                                     "S1,x,0.5,1\n"
+                                     "S1,x,-2.0,2\n"
+                                     "S1,x,-1.0,3\n"
+                                     "S1,x,1.5,4\n"
+                                     "S1,x,2.5,5\n");
+    const fs::path file = dir / "replay.yaml";
+    write_text_file(file, "kind: workflow-config\n"
+                          "format_version: \"0.1.0\"\n"
+                          "workflow: { name: test.single, version: \"0.1.0\" }\n"
+                          "inputs:\n"
+                          "  source: { source: observation-csv, path: obs.csv }\n"
+                          "steps:\n" +
+                              step("a", "fx-echo"));
+    return utf8(file);
+}
+
+} // namespace
+
+TEST(Api, OpenKeepsTheWarningsOfValidation) {
+    ScratchDir dir;
+    const Runtime runtime(fixture_options());
+    const std::string file = write_replay_config(dir.path());
+
+    // What validate() reports for the configuration: valid, with one warning.
+    const ValidationReport report = runtime.validate(file);
+    EXPECT_TRUE(report.ok()) << report.to_text();
+    ASSERT_EQ(report.diagnostics.size(), 1u) << report.to_text();
+    EXPECT_EQ(report.diagnostics[0].severity, Severity::warning);
+    EXPECT_EQ(report.diagnostics[0].code, ErrorCode::TARGET_DATA_INVALID);
+    EXPECT_TRUE(contains(report.diagnostics[0].message, "2 of 5 rows")) << report.to_text();
+    EXPECT_EQ(report.diagnostics[0].location.line, 3); // the first early row, -2.0, is at line 3
+
+    // open() does not throw for it and the workflow keeps the same diagnostics.
+    const std::unique_ptr<Workflow> workflow = runtime.open(file);
+    EXPECT_EQ(workflow->diagnostics().to_json(), report.to_json());
+    EXPECT_EQ(workflow->diagnostics().to_text(), report.to_text());
+}
+
+TEST(Api, AWorkflowWithoutWarningsHasNoDiagnostics) {
+    ScratchDir dir;
+    const Runtime runtime(fixture_options());
+    const std::string file =
+        write_config(dir.path(), "test.single", "run: { ticks: 1 }\n", step("a", "fx-echo"));
+    const std::unique_ptr<Workflow> workflow = runtime.open(file);
+    EXPECT_TRUE(workflow->diagnostics().diagnostics.empty());
+}
+
+TEST(Api, RunRecordHoldsTheCountsOfTheReplayInputsOutsideTheFingerprint) {
+    ScratchDir dir;
+    const Runtime runtime(fixture_options());
+    const std::string file = write_replay_config(dir.path());
+    WorkflowOptions options;
+    options.output_dir = utf8(dir.path() / "out");
+    const std::unique_ptr<Workflow> workflow = runtime.open(file, options);
+    const RunSummary summary = workflow->run();
+    EXPECT_EQ(summary.final_state, WorkflowState::completed);
+
+    const json record = json::parse(workflow->run_record_json());
+    EXPECT_EQ(record.at("execution").at("inputs"),
+              json::parse(R"({"source":{"rows_total":5,"rows_before_start":2}})"));
+    // The file holds the same record.
+    EXPECT_EQ(json::parse(read_text(dir.path() / "out" / "run-record.json"))
+                  .at("execution")
+                  .at("inputs"),
+              record.at("execution").at("inputs"));
+    // The hashed section holds the input's source and digest only, never the counts.
+    const json& hashed = record.at("reproducibility").at("inputs").at("source");
+    EXPECT_FALSE(hashed.contains("rows_total"));
+    EXPECT_FALSE(hashed.contains("rows_before_start"));
+}
+
+TEST(Api, AJsonDocumentRunHasAnEmptyInputsSection) {
+    ScratchDir dir;
+    const Runtime runtime(fixture_options());
+    const std::string file =
+        write_config(dir.path(), "test.single", "run: { ticks: 1 }\n", step("a", "fx-echo"));
+    const std::unique_ptr<Workflow> workflow = runtime.open(file);
+    workflow->run();
+    EXPECT_EQ(json::parse(workflow->run_record_json()).at("execution").at("inputs"),
+              json::object());
+}

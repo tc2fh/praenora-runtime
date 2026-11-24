@@ -567,6 +567,10 @@ private:
             }
             try {
                 sources_[name] = make_input_source(binding->second, *type, config_.time);
+                // What the source noticed and does not refuse: warnings, as found.
+                for (const Diagnostic& note : sources_[name]->notes()) {
+                    report_.add(note);
+                }
             } catch (const Error& e) {
                 SourceLocation location = e.location();
                 if (location.file.empty()) {
@@ -612,6 +616,14 @@ private:
             result.steps.push_back(std::move(step));
         }
         result.services = services_;
+        // The run record's execution.inputs: the counts of every source that has rows.
+        result.input_counts = json::object();
+        for (const auto& [name, source] : sources_) {
+            if (const auto& counts = source->counts()) {
+                result.input_counts[name] = {{"rows_total", counts->rows_total},
+                                             {"rows_before_start", counts->rows_before_start}};
+            }
+        }
         result.sources = std::move(sources_);
         result.message_types = message_types();
         result.reproducibility = reproducibility(result);

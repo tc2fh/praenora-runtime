@@ -91,6 +91,11 @@ public:
     // The run's output directory as an absolute UTF-8 path (WorkflowOptions::output_dir, else the
     // configuration's outputs.directory), or empty when the run writes no files.
     const std::string& output_dir() const noexcept;
+    // What validation found when Runtime::open() opened the workflow and did not refuse it: its
+    // warnings and notes (an error would have made open() throw). Each is a Diagnostic of the
+    // report that Runtime::validate() gives for the same configuration, in the same order; empty
+    // when there are none. Fixed once the workflow is open.
+    const ValidationReport& diagnostics() const noexcept;
 
 private:
     friend class Runtime;

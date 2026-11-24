@@ -101,6 +101,10 @@ struct ValidatedWorkflow {
     // isolation settings, {<step>: {"mode": "in-process" | "process", "share_compiled_models",
     // "sandbox": "none" | "restricted"}}.
     nlohmann::json isolation;
+    // The run record's execution.inputs, outside the hashed section as well: the counts that the
+    // replay sources found in their data, {<input>: {"rows_total", "rows_before_start"}}, for each
+    // input whose source has rows (an observation-csv); none for a json-document.
+    nlohmann::json input_counts;
     // The module search paths that resolved the steps' modules, in search order, with their
     // origins and indexes: those of the context's index (RuntimeContext::modules), or the list
     // rebuilt with the configuration's modules.search_paths when it names any.
