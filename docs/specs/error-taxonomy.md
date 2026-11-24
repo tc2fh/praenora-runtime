@@ -166,8 +166,8 @@ Notes on the table:
   between calls.
 - `TARGET_DATA_INVALID` exits with 1 when a run meets it and with 3 when validation finds it, like
   every error of a validation report. As a warning (rows before `run.time.start`) it changes no exit
-  code: the tool prints it to standard error and the exit code stays 0. `TARGET_DATA_UNAVAILABLE` is found only by validation, so the
-  CLI exits with 3 for it.
+  code: the tool prints it to standard error and the exit code stays 0. `TARGET_DATA_UNAVAILABLE` is
+  found only by validation, so the CLI exits with 3 for it.
 - Retryable means that retrying the same operation unchanged may succeed: `RESOURCE_EXHAUSTED`,
   `TIMEOUT`, `IO_ERROR`, `STEP_TIMEOUT` and `TARGET_DATA_UNAVAILABLE`. A retry of a run is a new run
   with its own run record.

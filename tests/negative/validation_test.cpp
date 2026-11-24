@@ -699,3 +699,84 @@ TEST(Validation, AWarningOfASourceDoesNotHideAnErrorElsewhere) {
     }
     EXPECT_EQ(warnings, 1) << result.report.to_text();
 }
+
+TEST(Validation, EveryReplayInputHasItsOwnWarningAndCounts) {
+    // Two observation-csv inputs: only "left" has early rows. Each input has its own key in the
+    // counts, and the warning names the input that it concerns.
+    ScratchDir dir;
+    write_text_file(dir.path() / "left.csv", "series_id,variable_id,time,value\n"
+                                             "S1,x,-1.0,1\n"
+                                             "S1,x,2.0,2\n"
+                                             "S1,x,-4.0,3\n");
+    write_text_file(dir.path() / "right.csv", "series_id,variable_id,time,value\n"
+                                              "S1,y,0.5,1\n"
+                                              "S1,y,1.5,2\n");
+    const auto result = validate_text(
+        dir.path(), config("inputs:\n"
+                           "  left: { source: observation-csv, path: left.csv }\n"
+                           "  right: { source: observation-csv, path: right.csv }\n"
+                           "steps:\n"
+                           "  a: { module: { name: fx-echo, version: \"0.1.0\" } }\n"
+                           "  b: { module: { name: fx-echo, version: \"0.1.0\" } }\n",
+                           "test.two-sources"));
+    ASSERT_TRUE(result.workflow.has_value()) << result.report.to_text();
+    std::vector<Diagnostic> warnings;
+    for (const Diagnostic& diagnostic : result.report.diagnostics) {
+        if (diagnostic.severity == Severity::warning) {
+            warnings.push_back(diagnostic);
+        }
+    }
+    ASSERT_EQ(warnings.size(), 1u) << result.report.to_text();
+    EXPECT_TRUE(contains(warnings[0].message, "input 'left'")) << warnings[0].message;
+    EXPECT_TRUE(contains(warnings[0].message, "2 of 3 rows")) << warnings[0].message;
+    EXPECT_EQ(warnings[0].location.file, path_to_utf8(dir.path() / "left.csv"));
+    EXPECT_EQ(warnings[0].location.line, 2);
+    EXPECT_EQ(result.workflow->input_counts,
+              json::parse(R"({"left":{"rows_total":3,"rows_before_start":2},
+                              "right":{"rows_total":2,"rows_before_start":0}})"));
+}
+
+TEST(Validation, AWarningPerInputWhenBothHaveEarlyRows) {
+    ScratchDir dir;
+    write_text_file(dir.path() / "left.csv", "series_id,variable_id,time,value\n"
+                                             "S1,x,-1.0,1\n");
+    write_text_file(dir.path() / "right.csv", "series_id,variable_id,time,value\n"
+                                              "S1,y,-2.0,1\n"
+                                              "S1,y,-3.0,2\n");
+    const auto result = validate_text(
+        dir.path(), config("inputs:\n"
+                           "  left: { source: observation-csv, path: left.csv }\n"
+                           "  right: { source: observation-csv, path: right.csv }\n"
+                           "steps:\n"
+                           "  a: { module: { name: fx-echo, version: \"0.1.0\" } }\n"
+                           "  b: { module: { name: fx-echo, version: \"0.1.0\" } }\n",
+                           "test.two-sources"));
+    ASSERT_TRUE(result.workflow.has_value()) << result.report.to_text();
+    int left = 0;
+    int right = 0;
+    for (const Diagnostic& diagnostic : result.report.diagnostics) {
+        left += contains(diagnostic.message, "input 'left'") ? 1 : 0;
+        right += contains(diagnostic.message, "input 'right'") ? 1 : 0;
+    }
+    EXPECT_EQ(left, 1);
+    EXPECT_EQ(right, 1);
+}
+
+TEST(Validation, AllRowsBeforeTheStartGiveOneWarningAndCountsOfTwoOfTwo) {
+    ScratchDir dir;
+    write_text_file(dir.path() / "data" / "obs.csv", "series_id,variable_id,time,value\n"
+                                                     "S1,x,-3.0,1\n"
+                                                     "S1,x,-0.5,2\n");
+    const auto result = validate_text(
+        dir.path(), config("inputs:\n"
+                           "  source: { source: observation-csv, path: data/obs.csv }\n"
+                           "steps:\n"
+                           "  a: { module: { name: fx-echo, version: \"0.1.0\" } }\n"));
+    ASSERT_TRUE(result.workflow.has_value()) << result.report.to_text();
+    ASSERT_EQ(result.report.diagnostics.size(), 1u) << result.report.to_text();
+    EXPECT_EQ(result.report.diagnostics[0].severity, Severity::warning);
+    EXPECT_TRUE(contains(result.report.diagnostics[0].message, "2 of 2 rows"))
+        << result.report.diagnostics[0].message;
+    EXPECT_EQ(result.workflow->input_counts,
+              json::parse(R"({"source":{"rows_total":2,"rows_before_start":2}})"));
+}

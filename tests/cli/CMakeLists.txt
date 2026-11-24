@@ -337,6 +337,13 @@ praenora_add_cli_test(cli.validate.rows_before_start_json
     EXPECT_JSON_PATH ok result.ok result.diagnostics.0.severity result.diagnostics.0.name
         result.diagnostics.0.location.line
     EXPECT_JSON_VALUE true true warning TARGET_DATA_INVALID 3)
+# Every row before the start: still one warning, "2 of 2 rows", and the exit code is 0.
+praenora_add_cli_test(cli.validate.all_rows_before_start
+    CMD validate "${_praenora_cli_configs}/early-rows-all/workflow.yaml" ${_praenora_fixture_paths}
+        --json
+    EXPECT_JSON_PATH ok result.ok result.diagnostics.0.severity result.diagnostics.0.message
+    EXPECT_JSON_VALUE true true warning *
+    EXPECT_STDERR_REGEX "2 of 2 rows have a time before run\\.time\\.start")
 set(_praenora_early_rows_out "${_praenora_cli_out}/early-rows")
 praenora_add_cli_test(cli.run.rows_before_start
     CLEAN_DIR "${_praenora_early_rows_out}"

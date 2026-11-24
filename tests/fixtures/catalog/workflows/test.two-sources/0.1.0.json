@@ -1,0 +1,56 @@
+{
+  "kind": "workflow-definition",
+  "format_version": "0.1.0",
+  "name": "test.two-sources",
+  "version": "0.1.0",
+  "status": "stable",
+  "summary": "Two inputs, each echoed by a step of its own (tests of per-input data findings).",
+  "inputs": {
+    "left": {
+      "type": "test.blob",
+      "type_version": "0.1.0"
+    },
+    "right": {
+      "type": "test.blob",
+      "type_version": "0.1.0"
+    }
+  },
+  "steps": {
+    "a": {
+      "capability": "test.echo",
+      "capability_version": "0.1.0"
+    },
+    "b": {
+      "capability": "test.echo",
+      "capability_version": "0.1.0"
+    }
+  },
+  "connections": [
+    {
+      "from": "inputs.left",
+      "to": "a.in"
+    },
+    {
+      "from": "inputs.right",
+      "to": "b.in"
+    },
+    {
+      "from": "a.out",
+      "to": "outputs.left_result"
+    },
+    {
+      "from": "b.out",
+      "to": "outputs.right_result"
+    }
+  ],
+  "outputs": {
+    "left_result": {
+      "type": "test.blob",
+      "type_version": "0.1.0"
+    },
+    "right_result": {
+      "type": "test.blob",
+      "type_version": "0.1.0"
+    }
+  }
+}

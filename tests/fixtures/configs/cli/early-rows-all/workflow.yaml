@@ -1,0 +1,10 @@
+# Every row of obs.csv is before the run's start (time 0): validation warns once, TARGET_DATA_INVALID
+# at the first of them (CLI tests cli.validate.all_rows_before_start).
+kind: workflow-config
+format_version: "0.1.0"
+workflow: { name: test.single, version: "0.1.0" }
+run: { ticks: 2 }
+inputs:
+  source: { source: observation-csv, path: obs.csv }
+steps:
+  a: { module: { name: fx-echo, version: "0.1.0" } }
