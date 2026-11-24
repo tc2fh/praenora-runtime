@@ -447,5 +447,54 @@ class SecondThreadTest(WorkflowTestCase):
             self.assertEqual(workflow.run_record()["execution"]["status"], "stopped")
 
 
+class DiagnosticsTest(WorkflowTestCase):
+    """Workflow.diagnostics(): what validation found when the run was opened and did not refuse."""
+
+    def replay_config(self, rows):
+        """A configuration of test.single whose input replays a CSV of `rows` (time, value)."""
+        directory = self.directory / "replay"
+        directory.mkdir(parents=True, exist_ok=True)
+        lines = ["series_id,variable_id,time,value"]
+        lines += [f"S1,x,{time},{value}" for time, value in rows]
+        (directory / "obs.csv").write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+        config = directory / "workflow.yaml"
+        config.write_text("kind: workflow-config\n"
+                          'format_version: "0.1.0"\n'
+                          'workflow: { name: test.single, version: "0.1.0" }\n'
+                          "run: { ticks: 2 }\n"
+                          "inputs:\n"
+                          "  source: { source: observation-csv, path: obs.csv }\n"
+                          "steps:\n" + step("a", "fx-echo"),
+                          encoding="utf-8", newline="\n")
+        return config
+
+    def test_warnings_of_the_validation_that_opened_the_run(self):
+        config = self.replay_config([(0.5, 1), (-2.0, 2), (-1.0, 3), (1.5, 4)])
+        reported = pr.validate(config, **FIXTURE_PATHS)
+        self.assertTrue(reported["ok"])
+        with pr.Workflow(config, output_dir=self.directory / "out", **FIXTURE_PATHS) as workflow:
+            diagnostics = workflow.diagnostics()
+            # The same document that validate() gives for the configuration: one warning.
+            self.assertEqual(diagnostics, reported)
+            self.assertTrue(diagnostics["ok"])
+            self.assertEqual(len(diagnostics["diagnostics"]), 1)
+            warning = diagnostics["diagnostics"][0]
+            self.assertEqual((warning["severity"], warning["name"]),
+                             ("warning", "TARGET_DATA_INVALID"))
+            self.assertEqual(warning["location"]["line"], 3)
+            self.assertIn("2 of 4 rows have a time before run.time.start", warning["message"])
+            # The warnings do not stop the run, and its record holds the counts.
+            self.assertEqual(workflow.run()["state"], "completed")
+            self.assertEqual(workflow.run_record()["execution"]["inputs"],
+                             {"source": {"rows_total": 4, "rows_before_start": 2}})
+            # A query that still works once the run is over.
+            self.assertEqual(workflow.diagnostics(), diagnostics)
+
+    def test_no_warnings_without_early_rows(self):
+        config = self.replay_config([(0.5, 1), (1.5, 2)])
+        with pr.Workflow(config, **FIXTURE_PATHS) as workflow:
+            self.assertEqual(workflow.diagnostics(), {"ok": True, "diagnostics": []})
+
+
 if __name__ == "__main__":
     unittest.main()

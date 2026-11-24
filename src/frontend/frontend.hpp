@@ -12,6 +12,7 @@
 #include <praenora/runtime/options.hpp>
 #include <praenora/runtime/runtime.hpp>
 #include <praenora/runtime/status.hpp>
+#include <praenora/runtime/workflow.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -103,6 +104,14 @@ inline nlohmann::json catalog_entry_json(const CatalogEntryInfo& entry) {
             {"version", entry.version},
             {"status", entry.status},
             {"summary", entry.summary}};
+}
+
+// What validation found when a workflow was opened and did not refuse it: the warnings and notes,
+// as the report of validate gives them, {"ok": true, "diagnostics": [...]}. The praenora tool puts
+// the array into a run's result (when it is not empty) and prints it to standard error, and the
+// Python package's Workflow.diagnostics() returns the document, so neither can drift.
+inline nlohmann::json workflow_diagnostics_json(const Workflow& workflow) {
+    return nlohmann::json::parse(workflow.diagnostics().to_json());
 }
 
 // The summary of a run: {"state", "ticks_completed", "fingerprint"}. (The praenora tool adds the

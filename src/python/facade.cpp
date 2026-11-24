@@ -403,6 +403,10 @@ std::string WorkflowHandle::latest_outputs() const {
     return guarded([&] { return workflow_->latest_outputs_json(); });
 }
 
+std::string WorkflowHandle::diagnostics() const {
+    return guarded([&] { return dump(frontend::workflow_diagnostics_json(*workflow_)); });
+}
+
 std::string WorkflowHandle::run_record() const {
     return guarded([&] { return workflow_->run_record_json(); });
 }

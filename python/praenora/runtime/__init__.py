@@ -365,6 +365,13 @@ class Workflow:
         and <home>."""
         return _decoded(self._handle.run_record)
 
+    def diagnostics(self):
+        """What validation found when the run was opened and did not refuse it: the report of
+        validate(), {"ok": True, "diagnostics": [...]}, whose diagnostics are warnings (and
+        notes), for example data rows before the run's start; the praenora tool prints the same
+        ones. An error would have raised in the constructor."""
+        return _decoded(self._handle.diagnostics)
+
     def request_stop(self):
         """Asks the run to stop: the module call in progress is asked to cancel, no further call
         starts, and the run ends as "stopped". It may be called from any thread."""

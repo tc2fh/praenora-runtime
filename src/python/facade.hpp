@@ -125,6 +125,9 @@ public:
     std::string metrics() const;
     std::string latest_outputs() const;
     std::string run_record() const;
+    // What validation found when the run was opened and did not refuse it: the report of
+    // validate, {"ok": true, "diagnostics": [...]}, whose diagnostics are warnings and notes.
+    std::string diagnostics() const;
     void request_stop();
     void close();
     // The run's state, for example "running", and its fingerprint (SHA-256, hex): plain text.

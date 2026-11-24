@@ -78,7 +78,7 @@ json summary_json(const Workflow& workflow, const RunSummary& summary) {
     result["output_dir"] = dir.empty() ? json(nullptr) : json(dir);
     // The warnings and notes of the validation that opened the run, as validate gives them.
     if (!workflow.diagnostics().diagnostics.empty()) {
-        result["diagnostics"] = json::parse(workflow.diagnostics().to_json()).at("diagnostics");
+        result["diagnostics"] = frontend::workflow_diagnostics_json(workflow).at("diagnostics");
     }
     return result;
 }
