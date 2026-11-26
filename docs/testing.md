@@ -326,20 +326,14 @@ CMake makes a relative value absolute against the current directory; a value tha
 name a file, or that holds a `;`, `[` or `]`, fails the configuration. Configuring with an empty
 value (`-DPRAENORA_ASYNCAPI_SCHEMA=`) removes the three tests; the executable is still built.
 
-The tests pass in the ThreadSanitizer tree as they are. In the AddressSanitizer tree, compiling the
-official schema trips AddressSanitizer's container-overflow check when json-schema-validator is a
-library built without AddressSanitizer, as the commands in
-[platforms.md](platforms.md#json-schema-validator) build it. The report is false: only the
-instrumented copies of the container code mark a container's unused capacity, so a container that
-the uninstrumented library fills looks overrun. A tree configured with
-`PRAENORA_FETCH_JSON_SCHEMA_VALIDATOR=ON` builds the validator from its sources with the tree's own
-flags ([platforms.md](platforms.md#json-schema-validator), which also shows how to use a local copy
-of the sources instead of downloading them). There the check reports nothing, and the three tests
-keep it and pass, with no `ASAN_OPTIONS`:
+The tests pass in the ThreadSanitizer and AddressSanitizer trees as they are: the JSON Schema
+validator, jsoncons, is header-only and compiled with the tree's own flags. (With the earlier
+validator, a library built without the sanitizer, compiling the official schema tripped a false
+AddressSanitizer container-overflow report, and the tests ran with that check off; that carve-out
+is gone, [ADR-0043](adr/ADR-0043-json-schema-dialects-and-validator.md).)
 
 ```bash
-cmake --preset dev-asan -DPRAENORA_FETCH_JSON_SCHEMA_VALIDATOR=ON \
-    -DPRAENORA_ASYNCAPI_SCHEMA="$HOME/asyncapi-3.0.0.json"
+cmake --preset dev-asan -DPRAENORA_ASYNCAPI_SCHEMA="$HOME/asyncapi-3.0.0.json"
 cmake --build --preset dev-asan
 ctest --preset dev-asan
 ```
@@ -453,21 +447,12 @@ ctest --preset dev-tsan
   stay loaded: the sanitizer keeps an unloaded library's globals registered, which would trip false
   reports against a library loaded later at the same address. Unloading is tested by every other
   build, ThreadSanitizer included.
-- A sanitizer sees only the code compiled with its flags, and the third-party libraries are linked
-  as installed, normally without them: json-schema-validator as
-  [platforms.md](platforms.md#json-schema-validator) builds it, and yaml-cpp, spdlog and GoogleTest
-  from the package manager. Errors inside them go unnoticed, and AddressSanitizer can report a
-  false container overflow when such a library fills a container that instrumented code made. A
-  tree configured with `PRAENORA_FETCH_JSON_SCHEMA_VALIDATOR=ON` builds json-schema-validator from
-  its pinned sources with the tree's own flags
-  ([platforms.md](platforms.md#json-schema-validator)); the others stay as installed, and no false
-  report from them has been seen.
-- In an AddressSanitizer tree configured with `PRAENORA_ASYNCAPI_SCHEMA` whose json-schema-validator
-  is an installed library, the tests of the official AsyncAPI schema run with AddressSanitizer's
-  container-overflow check off, because such a library is taken to be built without the sanitizer,
-  and such a library trips a false report there; every other test keeps the check. With
-  `PRAENORA_FETCH_JSON_SCHEMA_VALIDATOR=ON` they keep it too
-  ([The official AsyncAPI schema](#the-official-asyncapi-schema)).
+- A sanitizer sees only the code compiled with its flags, and the compiled third-party libraries
+  are linked as installed, normally without them: yaml-cpp, spdlog and GoogleTest from the package
+  manager. Errors inside them go unnoticed, and AddressSanitizer can report a false container
+  overflow when such a library fills a container that instrumented code made; no false report from
+  them has been seen. The header-only libraries (jsoncons, nlohmann/json) are compiled with the
+  tree's flags in every tree.
 - The module hosts that tests make crash on purpose run with the sanitizers' own signal handling
   off, so they end by the crash's signal ([Module hosts](#module-hosts)).
 - `python.unittest` is registered but disabled: an instrumented extension cannot be loaded into an

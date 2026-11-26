@@ -16,8 +16,9 @@ the rules of workflow graphs in [workflow-definitions.md](workflow-definitions.m
 
 ## Documents and schemas
 
-Every Praenora document is a JSON object validated against a JSON Schema (draft-07) before it is
-used ([ADR-0008](../adr/ADR-0008-json-schema-draft-07-embedded-schemas.md)):
+Every Praenora document is a JSON object validated against a JSON Schema (draft-07; a schema may
+declare 2020-12) before it is used ([ADR-0043](../adr/ADR-0043-json-schema-dialects-and-validator.md),
+which replaces [ADR-0008](../adr/ADR-0008-json-schema-draft-07-embedded-schemas.md)):
 
 - A document that has a `kind` carries it with a constant value per schema, together with
   `format_version`, a semantic version. The module-ABI documents (`pmp-*`) have no `kind`; the
@@ -225,7 +226,7 @@ schema of its kind:
   Entries of different kinds MAY share an `id@version`. A second entry of one kind with the same
   `id@version` is `CATALOG_ENTRY_DUPLICATE`, also when it comes from an extra directory: an entry is
   never replaced.
-- A message type's `schema` is the draft-07 schema of its `data`; it MUST compile, or the catalog
+- A message type's `schema` is the JSON Schema (draft-07, or 2020-12 if it declares it) of its `data`; it MUST compile, or the catalog
   does not load (`SCHEMA_VIOLATION`).
 - `status` is `draft`, `stable` or `deprecated`. It informs users; the runtime treats every status
   alike.
@@ -401,7 +402,7 @@ with it ([testing.md](../testing.md#the-official-asyncapi-parser)).
 ## References
 
 - [ADR-0007](../adr/ADR-0007-json-messages-for-v0.md): JSON messages for v0.
-- [ADR-0008](../adr/ADR-0008-json-schema-draft-07-embedded-schemas.md): draft-07 schemas, embedded.
+- [ADR-0043](../adr/ADR-0043-json-schema-dialects-and-validator.md): the schema dialects and the validator; [ADR-0008](../adr/ADR-0008-json-schema-draft-07-embedded-schemas.md): draft-07 schemas, embedded (superseded).
 - [ADR-0010](../adr/ADR-0010-workflow-definitions-as-catalog-data.md): the catalog and the configuration.
 - [ADR-0011](../adr/ADR-0011-tick-based-synchronous-execution.md): tick-based execution.
 - [ADR-0020](../adr/ADR-0020-message-envelope-and-asyncapi.md): envelope, CloudEvents and AsyncAPI.

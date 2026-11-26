@@ -87,7 +87,7 @@ A module that uses runtime services of service providers declares them in `requi
 | `platform.os` | `linux`, `macos` or `windows` | yes | The operating system the library was built for. |
 | `platform.arch` | `x86_64` or `arm64` | yes | The architecture the library was built for. |
 | `capabilities` | array of `{id, version}`, at least one | yes | The capabilities the module implements. |
-| `parameters_schema` | object | no | A draft-07 schema of a step's parameters; `{"type": "object"}` when absent. |
+| `parameters_schema` | object | no | A JSON Schema of a step's parameters, draft-07 or 2020-12 (its `$schema`; draft-07 when absent); `{"type": "object"}` when the field is absent. |
 | `requires.services` | array of `{name, major, minor, optional}` | no (format 0.2) | The runtime services of providers that the module requires or can use. |
 | `requires.services[].name` | service name | yes | A dotted identifier, such as `praenora.simulation` ([runtime-services.md](runtime-services.md#services)). |
 | `requires.services[].major` | integer from 0 to 4294967295 | yes | The service's major version. |
@@ -120,8 +120,12 @@ A module that uses runtime services of service providers declares them in `requi
 - **Capabilities.** Each `{id, version}` MUST appear at most once. A step can be bound to the
   module only when the manifest lists the step's capability at exactly the version the workflow
   definition requires (build metadata ignored).
-- **Parameters.** `parameters_schema` MUST be a valid draft-07 schema (a `$schema` other than
-  draft-07 is refused). The runtime validates a step's `parameters` against it
+- **Parameters.** `parameters_schema` MUST be a valid schema of its dialect: draft-07 (the default
+  when it has no `$schema`) or 2020-12 (`"$schema": "https://json-schema.org/draft/2020-12/schema"`);
+  any other `$schema` is refused, a schema that refers to itself without looking at the instance
+  (`{"$ref": "#"}`) is refused, and `format` is asserted for the formats the validator knows. Draft-07
+  ignores the keywords beside a `$ref`, a `default` among them; 2020-12 applies them (`praenora
+  check module` notes the draft-07 case). The runtime validates a step's `parameters` against it
   (`PARAMETERS_INVALID`, located at `/steps/<step>/parameters<pointer>` in the configuration) and
   fills in its `default` values before `create`. The resulting parameters are what `create` receives
   and what the run record holds.

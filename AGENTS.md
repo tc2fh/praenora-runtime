@@ -72,8 +72,8 @@ not yet verified, and no release has been made.
 ## Setup and commands
 
 **Dependencies.** CMake 3.24+; Ninja (Linux, macOS) or Visual Studio 2022 (Windows); GCC 9+,
-Clang 10+, AppleClang 13+ or MSVC 19.29+; nlohmann/json 3.11+, json-schema-validator (pboettch)
-2.3+, yaml-cpp 0.8+ (0.7 works through a target shim), spdlog 1.10+, GoogleTest 1.11+; for the
+Clang 10+, AppleClang 13+ or MSVC 19.29+; nlohmann/json 3.11+, jsoncons 1.10.0 exactly (header-only),
+yaml-cpp 0.8+ (0.7 works through a target shim), spdlog 1.10+, GoogleTest 1.11+; for the
 Python bindings SWIG 4.0+ and Python 3.10+ with headers.
 
 - macOS: `brew install cmake ninja swig nlohmann-json yaml-cpp spdlog googletest`
@@ -82,18 +82,16 @@ Python bindings SWIG 4.0+ and Python 3.10+ with headers.
 - Fedora (not yet verified): `sudo dnf install cmake ninja-build gcc-c++ json-devel yaml-cpp-devel
   spdlog-devel gtest-devel swig python3-devel`
 - Windows (not yet verified): Visual Studio 2022 with the libraries from vcpkg or conda-forge.
-- json-schema-validator is needed on every platform and is not packaged by Homebrew, apt or dnf.
-  Build it into a local prefix with the commands in
-  [docs/platforms.md](docs/platforms.md#json-schema-validator), which clone it outside the
-  checkout, then list that prefix in `CMAKE_PREFIX_PATH` when configuring this project.
+- jsoncons (the JSON Schema validator, header-only) is needed on every platform and is not
+  packaged by Homebrew or conda-forge, and the versions of apt and dnf are older than the 1.7 it
+  needs ([docs/platforms.md](docs/platforms.md#jsoncons)): configure with
+  `-DPRAENORA_FETCH_DEPENDENCIES=ON`, or install it into a prefix of your own and list that prefix
+  in `CMAKE_PREFIX_PATH`.
 - Instead of installing packages, configure with `-DPRAENORA_FETCH_DEPENDENCIES=ON`: installed
   packages are still preferred and only missing ones are downloaded, at pinned commits. A default
   build never uses the network.
-- For sanitizer builds, `-DPRAENORA_FETCH_JSON_SCHEMA_VALIDATOR=ON` builds json-schema-validator in
-  the tree from its pinned commit, with the sanitizer flags, instead of linking the installed,
-  uninstrumented library; it downloads the sources unless
-  `FETCHCONTENT_SOURCE_DIR_NLOHMANN_JSON_SCHEMA_VALIDATOR` names a local copy
-  ([docs/platforms.md](docs/platforms.md#json-schema-validator)).
+- jsoncons is header-only, so a sanitizer build instruments it with the rest of the runtime; no
+  option is needed.
 - Optional, for the roadrunner provider only: an installed libRoadRunner 2.11 (its static library
   `roadrunner-static` and the packages it links) and the LLVM 13 it was built with, never
   downloaded; [docs/platforms.md](docs/platforms.md#the-roadrunner-provider) says what to install
@@ -102,8 +100,8 @@ Python bindings SWIG 4.0+ and Python 3.10+ with headers.
   (`antimony-static`) against libSBML (with comp), SBMLNetwork and expat, such as libRoadRunner's
   dependencies, never downloaded; [docs/platforms.md](docs/platforms.md#the-antimony-provider) says
   how to build it and how CMake finds it.
-- A dependency bundle of praenora-runtime-deps holds json-schema-validator (with its
-  nlohmann/json), libRoadRunner, LLVM and libAntimony, built; `cmake/PraenoraRuntimeDepsPin.cmake`
+- A dependency bundle of praenora-runtime-deps holds nlohmann/json (in its `json-schema-validator`
+  directory, with the validator the runtime no longer uses), libRoadRunner, LLVM and libAntimony, built; `cmake/PraenoraRuntimeDepsPin.cmake`
   pins its release and, for each platform key of `PRAENORA_RUNTIME_DEPS_PLATFORMS` (such as
   `macos-arm64-release`), the archive's name and SHA-256.
   `cmake -DPLATFORM=<key> -DDESTINATION=<dir> -P cmake/praenora_fetch_runtime_deps.cmake`
@@ -274,9 +272,7 @@ Build options are in `cmake/PraenoraOptions.cmake`, among them `PRAENORA_WITH_RO
 which builds the roadrunner provider; with it, the cache variable `LLVM_INSTALL_PREFIX`
 (`cmake/PraenoraRoadrunner.cmake`) names the LLVM that libRoadRunner was built with;
 `PRAENORA_WITH_ANTIMONY` (OFF), which builds the antimony provider
-(`cmake/PraenoraAntimony.cmake`); `PRAENORA_FETCH_JSON_SCHEMA_VALIDATOR` (OFF), which builds
-json-schema-validator from its pinned sources, for the sanitizer builds
-(`cmake/PraenoraDependencies.cmake`); `PRAENORA_THIRD_PARTY_LICENSE_DIRS` (empty), absolute paths
+(`cmake/PraenoraAntimony.cmake`); `PRAENORA_THIRD_PARTY_LICENSE_DIRS` (empty), absolute paths
 of directories whose contents every installation holds in `share/praenora/licenses/`, such as a
 dependency bundle's `licenses/` (`cmake/PraenoraInstall.cmake`,
 [docs/developer-guide.md](docs/developer-guide.md#license-files)); `PRAENORA_ASYNCAPI_SCHEMA`
@@ -402,7 +398,8 @@ docs/                         index.md, the guides (architecture, user-guide, co
   libRoadRunner) and `antimony` (the model conversion service, libAntimony).
 - A YAML workflow configuration pins a versioned workflow definition from the protocol catalog and
   binds its steps to modules; connections come from the definition, never from the YAML. Every
-  document is validated against an embedded JSON Schema (draft-07) before anything runs.
+  document is validated against an embedded JSON Schema (draft-07, or 2020-12 where a schema
+  declares it) before anything runs.
 - Execution is a sequence of synchronous ticks in deterministic order; feedback uses connections
   with `delay: 1`. Each run has a fingerprint and a run record; status, metrics and logs are
   available from C++, the CLI and Python.

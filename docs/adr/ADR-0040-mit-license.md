@@ -14,11 +14,13 @@ project.
 
 The repository praenora-runtime-deps, which builds the third-party libraries that the runtime and
 its providers link (LLVM, libRoadRunner with libroadrunner-deps' libraries, libAntimony,
-nlohmann/json, json-schema-validator) into dependency bundles, is under the MIT license, copyright
+nlohmann/json, and the json-schema-validator that the runtime used before
+[ADR-0043](ADR-0043-json-schema-dialects-and-validator.md)) into dependency bundles, is under the MIT license, copyright
 The Praenora developers. Each bundle holds the license files of its libraries in `licenses/`.
 
-An installation of the runtime holds third-party code linked statically: json-schema-validator
-when it is a static library, as in a bundle; nlohmann/json, which is header-only; yaml-cpp and
+An installation of the runtime holds third-party code linked statically or compiled in from its
+headers: jsoncons and nlohmann/json, which are header-only (jsoncons' headers also carry the MIT and
+Apache 2.0 texts of code they include: a5hash, Grisu3, MongoDB's BSON headers); yaml-cpp and
 spdlog when they are built in the tree; and, with the providers, libRoadRunner, LLVM, libSBML and
 libAntimony. Each keeps the license of its upstream project, and those licenses ask for their text
 to travel with copies of the code.
@@ -34,9 +36,9 @@ to travel with copies of the code.
   ([`cmake/PraenoraInstall.cmake`](../../cmake/PraenoraInstall.cmake)):
   - `praenora-runtime/LICENSE`: this repository's license.
   - `<name>/` for each dependency built in the tree with FetchContent (`nlohmann_json`,
-    `nlohmann_json_schema_validator`, `yaml-cpp`, `spdlog`; never GoogleTest, which only the tests
+    `jsoncons`, `yaml-cpp`, `spdlog`; never GoogleTest, which only the tests
     link): the files at the top of its sources whose names begin with `LICENSE`, `COPYING` or
-    `NOTICE`, and for spdlog the license of the fmt library it bundles, each under its path in the
+    `NOTICE`, for jsoncons the four headers that carry other licenses' texts, and for spdlog the license of the fmt library it bundles, each under its path in the
     sources. A dependency built in the tree without a `LICENSE` or `COPYING` file stops the
     configuration.
   - The contents of each directory of the cache variable `PRAENORA_THIRD_PARTY_LICENSE_DIRS`
@@ -85,14 +87,15 @@ to travel with copies of the code.
   (not checked against spdlog 1.17.0, whose sources were not at hand offline: a substitute source
   tree checked the rule); none is required.
 - The build cannot tell where an installed package keeps its license files, so a static library
-  found with `find_package()`, such as a bundle's json-schema-validator or the providers' engines,
+  found with `find_package()`, such as a bundle's jsoncons (once it holds one) or the providers' engines,
   brings them only through `PRAENORA_THIRD_PARTY_LICENSE_DIRS`. Its entries are checked when the
   install rules are generated, the only time they are used; a relative path is refused rather than
   read against a directory that the configure line does not show.
 - Checked on macOS arm64: `install.consumer` requires `praenora-runtime/LICENSE`, equal to `LICENSE`
-  by SHA-256, in the installation and in the moved one; in a tree with json-schema-validator built
-  from local sources and the bundle's `licenses/` in `PRAENORA_THIRD_PARTY_LICENSE_DIRS` it also
-  requires `nlohmann_json_schema_validator/` and the bundle's 19 files, and fails when the install
+  by SHA-256, in the installation and in the moved one; in a tree with a dependency built
+  from local sources (at the time of writing json-schema-validator, which ADR-0043 replaced with
+  jsoncons) and the bundle's `licenses/` in `PRAENORA_THIRD_PARTY_LICENSE_DIRS` it also
+  requires that dependency's `licenses/<name>/` and the bundle's 19 files, and fails when the install
   rule of either is taken out of the generated install script; a configuration with
   nlohmann/json 3.12.0 from local sources installs `nlohmann_json/LICENSE.MIT` alone; a substitute
   source tree for spdlog (configured, not built) gets an install rule for its fmt license under its

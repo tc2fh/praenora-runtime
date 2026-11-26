@@ -392,7 +392,7 @@ endif()
 - The toolchain sets `CMAKE_SYSTEM_NAME` to `Emscripten` and the executable suffix to `.js`, uses
   Node as `CMAKE_CROSSCOMPILING_EMULATOR` when it finds one, and searches for libraries, headers and
   packages only under the target root by default [W6]. So `ctest` can run test executables under
-  Node, and the dependencies (nlohmann/json, json-schema-validator, yaml-cpp, spdlog, GoogleTest)
+  Node, and the dependencies (nlohmann/json, jsoncons, yaml-cpp, spdlog, GoogleTest)
   must be built with Emscripten as well; that each builds unchanged is unverified.
 - `PRAENORA_INLINE_EXECUTOR` and `PRAENORA_STATIC_MODULES` are names proposed here. The Python
   bindings and install rules stay off. Tests that read fixture files need Node's file system

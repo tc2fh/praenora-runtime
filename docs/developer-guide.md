@@ -18,7 +18,7 @@ with `find_package` in CONFIG mode:
 | Package | Minimum | Used by |
 |---|---|---|
 | nlohmann/json | 3.11 | the runtime, the CLI, the examples |
-| json-schema-validator (pboettch) | 2.3 | the runtime |
+| jsoncons (header-only) | 1.10.0, exactly | the runtime |
 | yaml-cpp | 0.8 (0.7 through a target shim) | the runtime |
 | spdlog (with fmt) | 1.10 | the runtime |
 | GoogleTest | 1.11 | the tests |
@@ -29,8 +29,9 @@ with `find_package` in CONFIG mode:
 
 The third-party libraries link privately into the runtime, so neither the installed headers nor the
 installed CMake package mention them. The commands that install them on each platform are in
-[platforms.md](platforms.md); json-schema-validator, which Homebrew, apt and dnf do not package, is
-built from source as [platforms.md](platforms.md#json-schema-validator) shows.
+[platforms.md](platforms.md); jsoncons, which Homebrew and conda-forge do not package and whose apt
+and dnf versions are not 1.10.0, comes with `PRAENORA_FETCH_DEPENDENCIES=ON` or from an
+installation of your own ([platforms.md](platforms.md#jsoncons)).
 
 **Offline by default.** A default configuration uses installed packages only and never touches the
 network. With `PRAENORA_FETCH_DEPENDENCIES=ON`, CMake's FetchContent still tries `find_package`
@@ -43,11 +44,9 @@ cmake --preset dev -DPRAENORA_FETCH_DEPENDENCIES=ON
 ```
 
 With every package installed, as where this was run, that configuration finds them all and downloads
-nothing; an actual download is not yet verified. `PRAENORA_FETCH_JSON_SCHEMA_VALIDATOR=ON` is the
-one option that builds a dependency even when it is installed: json-schema-validator, from its
-pinned sources, downloaded unless a local copy is named, so that sanitizer builds instrument it
-([Sanitizer builds](#sanitizer-builds)). Configuring prints one line per dependency, saying where it
-came from:
+nothing; an actual download is not yet verified. jsoncons is header-only, so a sanitizer build
+instruments it with the rest of the runtime ([Sanitizer builds](#sanitizer-builds)). Configuring
+prints one line per dependency, saying where it came from:
 
 ```text
 -- Praenora: dependency nlohmann_json 3.12.0 (found at /opt/homebrew/share/cmake/nlohmann_json)
@@ -74,7 +73,7 @@ Then edit its hidden `dev-local` preset:
 
 | Cache variable | Set it to |
 |---|---|
-| `CMAKE_PREFIX_PATH` | Your dependency prefixes, separated by `;` (for example Homebrew's prefix and the prefix of json-schema-validator). |
+| `CMAKE_PREFIX_PATH` | Your dependency prefixes, separated by `;` (for example Homebrew's prefix and the prefix of jsoncons). |
 | `Python3_EXECUTABLE` | The interpreter to build the Python bindings for. |
 | `PRAENORA_BUILD_PYTHON` | `ON` to build the bindings (needs SWIG and Python), `OFF` otherwise. |
 | `PRAENORA_FETCH_DEPENDENCIES` | `OFF`, or `ON` to download missing dependencies. |
@@ -95,7 +94,8 @@ version, for example `"15.0"`. The project default stays 11.0; the setting is lo
 
 The repository [praenora-runtime-deps](https://github.com/INFLECT-Praenora/praenora-runtime-deps)
 builds the dependencies that no package manager offers ready to use into a bundle, one per
-platform: json-schema-validator with the nlohmann/json it is compiled against, libRoadRunner with
+platform: nlohmann/json (in its `json-schema-validator` directory, next to the validator that the
+runtime no longer uses; the bundle has no jsoncons yet, so CI fetches it), libRoadRunner with
 its dependencies, the LLVM it was built with, and libAntimony, with their license files and a
 manifest, `praenora-runtime-deps.json`. Its releases publish each bundle as an archive.
 [`cmake/PraenoraRuntimeDepsPin.cmake`](../cmake/PraenoraRuntimeDepsPin.cmake) pins the release
@@ -147,10 +147,9 @@ must also be at least the bundle's (the manifest's `platform.os_min_version`, 14
 **Local presets.** With `<bundle>` the bundle's directory, the hidden presets of
 `CMakeUserPresets.json` ([Local presets](#local-presets)) list the bundle's directories as
 praenora-runtime-deps' `docs/outputs.md` gives them ("The Praenora runtime's local presets"). The
-runtime must compile against the nlohmann/json that json-schema-validator was compiled against, so
-`<bundle>/json-schema-validator` comes first, before any prefix that holds an nlohmann/json of its
-own, such as Homebrew's `/opt/homebrew`, which stands here for the prefixes of the other
-dependencies:
+runtime takes the bundle's nlohmann/json from `<bundle>/json-schema-validator`, which comes first,
+before any prefix that holds an nlohmann/json of its own, such as Homebrew's `/opt/homebrew`, which
+stands here for the prefixes of the other dependencies:
 
 ```json
 {
@@ -209,8 +208,8 @@ the environment variable `PRAENORA_RUNTIME_DEPS`, which the fetch script prints
 | `CMAKE_TRY_COMPILE_CONFIGURATION` | `ci-windows-x64-*` only: `Release` or `Debug`, the configuration of the bundle. The antimony provider's probe links the bundle's libraries when the build is configured, and the Visual Studio generator builds such a program in Debug unless this says otherwise, with another MSVC runtime library than a Release bundle's. |
 
 A tree of these presets builds both providers, the Python bindings and the tests, with warnings as
-errors. nlohmann/json and json-schema-validator come from the bundle, which is first on
-`CMAKE_PREFIX_PATH`. yaml-cpp, spdlog and GoogleTest are built from the commits that
+errors. nlohmann/json comes from the bundle, which is first on
+`CMAKE_PREFIX_PATH`. jsoncons, yaml-cpp, spdlog and GoogleTest are built from the commits that
 [`cmake/PraenoraDependencies.cmake`](../cmake/PraenoraDependencies.cmake) pins, whatever is
 installed, so that what a job builds does not depend on what its runner has installed: FetchContent
 first looks for an installed package with `find_package()` under the dependency's content name
@@ -289,7 +288,6 @@ Options are cache variables, set in a preset or on the configure line
 | `PRAENORA_BUILD_CLI` | ON | The `praenora` tool. |
 | `PRAENORA_BUILD_PYTHON` | OFF | The Python bindings ([python.md](python.md)). |
 | `PRAENORA_FETCH_DEPENDENCIES` | OFF | Download missing dependencies at pinned commits. |
-| `PRAENORA_FETCH_JSON_SCHEMA_VALIDATOR` | OFF | Build json-schema-validator from its pinned sources even when one is installed, so that a sanitizer build instruments it ([platforms.md](platforms.md#json-schema-validator)). |
 | `PRAENORA_INSTALL` | ON at top level | The install rules (none in a Python wheel build). |
 | `PRAENORA_INSTALL_EXAMPLES` | OFF | Install the example modules with every installation. |
 | `PRAENORA_THIRD_PARTY_LICENSE_DIRS` | empty | Absolute paths of directories (a `;`-list) whose contents every installation holds in `share/praenora/licenses/`, such as the `licenses/` directory of a dependency bundle ([below](#license-files)). |
@@ -344,14 +342,14 @@ its own license, so installations hold license files in `share/praenora/licenses
 | Path below `share/praenora/licenses/` | Content |
 |---|---|
 | `praenora-runtime/LICENSE` | This repository's license. |
-| `<name>/` | For each dependency built in the tree with FetchContent (`nlohmann_json`, `nlohmann_json_schema_validator`, `yaml-cpp`, `spdlog`; never GoogleTest, which only the tests link), the files at the top of its sources whose names begin with `LICENSE`, `COPYING` or `NOTICE`, in any case, and, for spdlog, the license of the fmt library it bundles (a file whose name holds `license` in `include/spdlog/fmt/bundled/`), each under its path in the sources. A dependency built in the tree without a `LICENSE` or `COPYING` file stops the configuration. Checked with the sources of json-schema-validator 2.4.1 and nlohmann/json 3.12.0; not yet verified with fetched yaml-cpp and spdlog sources, nor the name of spdlog 1.17.0's fmt license file (`fmt.license.rst` is expected: a file named otherwise is not installed, and nothing says so). |
-| the entries of each directory of `PRAENORA_THIRD_PARTY_LICENSE_DIRS` | Its contents, as they are. A dependency bundle's `licenses/` directory holds `<component>/` with the license files of each library in the bundle (libRoadRunner, LLVM, libroadrunner-deps' libraries, libAntimony, nlohmann/json, json-schema-validator) and `praenora-runtime-deps/LICENSE`. An entry that is not the absolute path of a directory stops the configuration. |
+| `<name>/` | For each dependency built in the tree with FetchContent (`nlohmann_json`, `jsoncons`, `yaml-cpp`, `spdlog`; never GoogleTest, which only the tests link), the files at the top of its sources whose names begin with `LICENSE`, `COPYING` or `NOTICE`, in any case, for jsoncons also the four headers that carry the license text of code they include (MIT: `a5hash.hpp`, `grisu3.hpp`; Apache 2.0: the BSON headers `bson_decimal128.hpp` and `bson_oid.hpp`), and, for spdlog, the license of the fmt library it bundles (a file whose name holds `license` in `include/spdlog/fmt/bundled/`), each under its path in the sources. A dependency built in the tree without a `LICENSE` or `COPYING` file stops the configuration. Checked with the sources of jsoncons 1.10.0 and nlohmann/json 3.12.0; not yet verified with fetched yaml-cpp and spdlog sources, nor the name of spdlog 1.17.0's fmt license file (`fmt.license.rst` is expected: a file named otherwise is not installed, and nothing says so). |
+| the entries of each directory of `PRAENORA_THIRD_PARTY_LICENSE_DIRS` | Its contents, as they are. A dependency bundle's `licenses/` directory holds `<component>/` with the license files of each library in the bundle (libRoadRunner, LLVM, libroadrunner-deps' libraries, libAntimony, nlohmann/json, and the json-schema-validator the runtime no longer uses) and `praenora-runtime-deps/LICENSE`. An entry that is not the absolute path of a directory stops the configuration. |
 
 The build cannot tell where an installed package keeps its license files, so a static or
 header-only library found with `find_package()` brings them into the installation only through
 `PRAENORA_THIRD_PARTY_LICENSE_DIRS`. The providers' engines (libRoadRunner, LLVM, libSBML,
-libAntimony), the json-schema-validator of a dependency bundle and an installed nlohmann/json
-(header-only, as in the `dev` build) are such libraries, and so is an installed spdlog used through
+libAntimony), an installed jsoncons and an installed nlohmann/json
+(both header-only, as in the `dev` build) are such libraries, and so is an installed spdlog used through
 its header-only target: when the prefixes come from a bundle, name its `licenses/` directory, for
 example in the hidden `dev-local` preset of `CMakeUserPresets.json`:
 
@@ -692,11 +690,9 @@ ctest --preset dev-tsan
 
 - GCC and Clang only; MSVC builds have no sanitizer presets.
 - The thread sanitizer cannot be combined with the address or leak sanitizers.
-- The third-party libraries are normally linked as installed, without the sanitizer flags;
-  json-schema-validator is built with them in a tree configured with
-  `PRAENORA_FETCH_JSON_SCHEMA_VALIDATOR=ON`, as is any library that `PRAENORA_FETCH_DEPENDENCIES`
-  downloads ([platforms.md](platforms.md#json-schema-validator),
-  [testing.md](testing.md#sanitizer-builds)).
+- The third-party libraries are normally linked as installed, without the sanitizer flags; the
+  header-only ones (jsoncons, nlohmann/json) are compiled with them in every tree, and so is any
+  library that `PRAENORA_FETCH_DEPENDENCIES` downloads ([testing.md](testing.md#sanitizer-builds)).
 - On macOS, AddressSanitizer test runs keep module libraries loaded
   (`PRAENORA_DEBUG_KEEP_LIBRARIES=1`): an unloaded instrumented library otherwise leaves its
   globals registered with the sanitizer, which then reports errors against a library loaded later

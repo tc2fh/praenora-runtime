@@ -320,7 +320,7 @@ uses that environment and the SWIG on `PATH` instead of downloading its requirem
 ```sh
 uv venv --python 3.12 build/wheel-tools
 uv pip install --python build/wheel-tools "scikit-build-core>=0.10"
-CMAKE_PREFIX_PATH="/opt/homebrew:/path/to/json-schema-validator/prefix" \
+CMAKE_PREFIX_PATH="/opt/homebrew:/path/to/jsoncons/prefix" \
     uv build --wheel --no-build-isolation --python build/wheel-tools/bin/python -o build/wheel \
     -C cmake.define.CMAKE_OSX_DEPLOYMENT_TARGET=15.0
 ```
@@ -346,7 +346,7 @@ macOS version all the same (`macosx_15_0_arm64` on macOS 15).
 scikit-build-core copies from the root by its default `wheel.license-files` patterns, and
 `METADATA` says `License: MIT`, from `pyproject.toml`'s `license = { text = "MIT" }`
 ([ADR-0040](adr/ADR-0040-mit-license.md)). The license files of the third-party code linked into
-the runtime library, such as a static json-schema-validator, are not in the wheel, whose
+the runtime library, such as a static yaml-cpp, are not in the wheel, whose
 distribution is open ([open-questions.md](open-questions.md), OQ-13). The wheel built above is
 1.04 MB, and 2.4 MB once installed:
 
@@ -387,8 +387,8 @@ with that environment's Python, CTest's environment for `python.unittest` and `P
 the environment's `site-packages` instead of `build/<preset>/python`.
 
 The runtime's third-party shared libraries are not bundled into the wheel: the macOS wheel above
-links yaml-cpp, spdlog and fmt from Homebrew by their absolute paths (json-schema-validator is
-linked statically, and nlohmann/json is header-only). Such a wheel works only where those libraries
+links yaml-cpp, spdlog and fmt from Homebrew by their absolute paths (jsoncons and nlohmann/json are
+header-only). Such a wheel works only where those libraries
 are installed at the same places, so it is not yet a portable binary; bundling and manylinux wheels
 are open ([open-questions.md](open-questions.md), OQ-13).
 

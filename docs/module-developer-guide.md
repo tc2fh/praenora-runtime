@@ -457,7 +457,9 @@ the variables are listed in [specs/manifest.md](specs/manifest.md#generating-man
 Besides the variables, a template sets what only the module knows:
 
 - `module.summary`, `authors`, `repository` and extension fields `x-...`.
-- `parameters_schema`: a JSON Schema draft-07 for the step's `parameters`. The runtime validates the
+- `parameters_schema`: a JSON Schema for the step's `parameters`, draft-07 (the default) or 2020-12
+  (declare `"$schema": "https://json-schema.org/draft/2020-12/schema"`). Draft-07 ignores keywords
+  beside a `$ref`, a `default` among them; `praenora check module` notes it. The runtime validates the
   configuration's parameters against it (`PARAMETERS_INVALID`) and fills in its `default`s before
   `create`. Give every parameter a default where one makes sense: the contract checks use the
   defaults when no test vectors are given.

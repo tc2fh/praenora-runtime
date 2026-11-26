@@ -45,56 +45,34 @@ a target.
   edited on Windows, with a byte order mark and CRLF line endings, read like LF files, and paths
   with spaces and non-ASCII characters work.
 
-## json-schema-validator
+## jsoncons
 
-Every platform needs json-schema-validator (pboettch) 2.3 or newer, which Homebrew, apt and dnf do
-not package. Build it into a local prefix of your choice, then list that prefix in
-`CMAKE_PREFIX_PATH` when you configure this project
-([developer-guide.md](developer-guide.md#local-presets)). Not yet verified: the commands download
-the sources, which the environment where this guide was checked does not allow. They clone and
-build in a scratch directory outside this repository, so they can be run from any directory, the
-repository root included. `-DCMAKE_PREFIX_PATH=/opt/homebrew` lets the build find Homebrew's
-nlohmann/json on macOS; leave it out on Linux.
+Every platform needs jsoncons 1.10.0, exactly, the library that validates JSON Schema (draft-07 and
+2020-12). It is header-only, so nothing is built and a sanitizer build instruments it with the rest
+of the runtime. Homebrew and conda-forge do not package it; vcpkg's port (1.9.0 when this was
+checked) and the Debian and Ubuntu packages (1.3.2 in Debian 13, 1.5.0 in Ubuntu 26.04) are not
+1.10.0, the only version the runtime was tested with: the validator's messages and reporter
+changed between releases, and the adapter reads message texts (`find_package` asks for exactly
+1.10.0, and a test pins the texts). Two ways to get it:
 
-```sh
-JSV="${TMPDIR:-/tmp}/json-schema-validator"
-git clone --branch 2.4.1 https://github.com/pboettch/json-schema-validator.git "$JSV"
-cmake -S "$JSV" -B "$JSV/build" -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DJSON_VALIDATOR_BUILD_TESTS=OFF \
-    -DJSON_VALIDATOR_BUILD_EXAMPLES=OFF -DJSON_VALIDATOR_INSTALL=ON \
-    -DCMAKE_PREFIX_PATH=/opt/homebrew -DCMAKE_INSTALL_PREFIX="$HOME/.local/opt/praenora-deps"
-cmake --build "$JSV/build" --target install
-```
-
-**Sanitizer builds.** The library these commands build has no sanitizer flags, and a sanitizer
-sees only the code compiled with them. In a sanitizer build that links it, errors inside the
-validator go unnoticed, and AddressSanitizer can report a container overflow that is not there:
-the instrumented copies of the container code mark a container's unused capacity, and the
-library's own copies fill it without clearing the mark. A sanitizer build can instead build the
-validator itself, with its own flags, from the commit that
-[`cmake/PraenoraDependencies.cmake`](../cmake/PraenoraDependencies.cmake) pins (2.4.1): configure
-it with `-DPRAENORA_FETCH_JSON_SCHEMA_VALIDATOR=ON`. CMake's FetchContent then downloads the
-sources, unless the cache variable `FETCHCONTENT_SOURCE_DIR_NLOHMANN_JSON_SCHEMA_VALIDATOR` names
-a local copy of them: a clone of the pinned commit, as above, but in a directory that lasts. macOS
-clears `$TMPDIR` after some days, and a configuration whose local copy is gone stops with an error.
+- Configure with `-DPRAENORA_FETCH_DEPENDENCIES=ON`. `find_package(jsoncons CONFIG)` is tried first;
+  otherwise CMake downloads the sources at the commit that
+  [`cmake/PraenoraDependencies.cmake`](../cmake/PraenoraDependencies.cmake) pins (v1.10.0) and
+  defines an interface target for their include directory. The project is not added to the build,
+  so it installs nothing and builds no tests.
+- Install it into a prefix of your own and list that prefix in `CMAKE_PREFIX_PATH`
+  ([developer-guide.md](developer-guide.md#local-presets)). Not yet verified on this host's
+  platforms other than Windows: the commands download the sources.
 
 ```sh
-JSV_SRC="$HOME/.local/src/json-schema-validator"
-git clone --branch 2.4.1 https://github.com/pboettch/json-schema-validator.git "$JSV_SRC"
-cmake --preset dev-asan -DPRAENORA_FETCH_JSON_SCHEMA_VALIDATOR=ON \
-    -DFETCHCONTENT_SOURCE_DIR_NLOHMANN_JSON_SCHEMA_VALIDATOR="$JSV_SRC"
-cmake --build --preset dev-asan
+git clone --branch v1.10.0 https://github.com/danielaparker/jsoncons.git "${TMPDIR:-/tmp}/jsoncons"
+cmake -S "${TMPDIR:-/tmp}/jsoncons" -B "${TMPDIR:-/tmp}/jsoncons/build" \
+    -DJSONCONS_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX="$HOME/.local/opt/praenora-deps"
+cmake --install "${TMPDIR:-/tmp}/jsoncons/build"
 ```
 
-Both are cache variables, so they stay set for later configurations of that tree; they can also go
-into the `dev-asan` and `dev-tsan` presets of `CMakeUserPresets.json`. The installed validator is
-then not used, though its prefix stays in `CMAKE_PREFIX_PATH`, and the other dependencies are found
-as before. The build writes nothing into the local copy and does not check it against the pinned
-commit; the configuration's status line reads `dependency nlohmann_json_schema_validator 2.4.1
-(local sources at <directory>)`. yaml-cpp, spdlog and GoogleTest are still linked as installed,
-without sanitizer flags; no false report from them has been seen. Verified on macOS arm64 with a
-clone at the pinned commit, in the `dev-asan` and `dev-tsan` builds; the download is not yet
-verified.
+The dependency bundle of praenora-runtime-deps does not hold jsoncons yet, so the `ci-*` presets
+(which set `PRAENORA_FETCH_DEPENDENCIES=ON`) fetch it.
 
 ## The roadrunner provider
 
@@ -118,7 +96,7 @@ POCO's in `<prefix>/lib/cmake/Poco`, so those directories go into `CMAKE_PREFIX_
   "name": "dev-roadrunner-local",
   "hidden": true,
   "cacheVariables": {
-    "CMAKE_PREFIX_PATH": "/opt/homebrew;<json-schema-validator prefix>;<RR>;<RR>/lib/cmake;<RR>/lib/cmake/Poco;<LLVM>",
+    "CMAKE_PREFIX_PATH": "/opt/homebrew;<jsoncons prefix>;<RR>;<RR>/lib/cmake;<RR>/lib/cmake/Poco;<LLVM>",
     "LLVM_INSTALL_PREFIX": "<LLVM>",
     "PRAENORA_WITH_ROADRUNNER": "ON"
   }
@@ -219,7 +197,7 @@ The provider's build finds libAntimony and SBMLNetwork by their headers and libr
   "name": "dev-antimony-local",
   "hidden": true,
   "cacheVariables": {
-    "CMAKE_PREFIX_PATH": "/opt/homebrew;<json-schema-validator prefix>;<RR>;<RR>/lib/cmake;<ANT>",
+    "CMAKE_PREFIX_PATH": "/opt/homebrew;<jsoncons prefix>;<RR>;<RR>/lib/cmake;<ANT>",
     "CMAKE_OSX_DEPLOYMENT_TARGET": "14.0",
     "PRAENORA_WITH_ANTIMONY": "ON"
   }
@@ -266,7 +244,7 @@ license files of libAntimony, libSBML, SBMLNetwork and expat only from a directo
 ## The CI presets
 
 The `ci-*` presets, for continuous-integration jobs, do not use the installations of the sections
-above. They take json-schema-validator (with the nlohmann/json it is compiled against),
+above. They take nlohmann/json (from the bundle's `json-schema-validator` directory),
 libRoadRunner with libroadrunner-deps' libraries, LLVM and libAntimony from a dependency bundle of
 [praenora-runtime-deps](https://github.com/INFLECT-Praenora/praenora-runtime-deps), one per
 platform key, at the release that
@@ -297,8 +275,8 @@ that compiler or a newer one of the same family.
 ## macOS
 
 **Dependencies.** Not yet verified: this command downloads packages, which the environment where
-this guide was checked does not allow. Homebrew provides everything except json-schema-validator,
-which is built from source ([json-schema-validator](#json-schema-validator)).
+this guide was checked does not allow. Homebrew provides everything except jsoncons, which
+configuring with `PRAENORA_FETCH_DEPENDENCIES=ON` downloads ([jsoncons](#jsoncons)).
 
 ```sh
 brew install cmake ninja swig nlohmann-json yaml-cpp spdlog googletest
@@ -306,7 +284,7 @@ brew install cmake ninja swig nlohmann-json yaml-cpp spdlog googletest
 
 **Presets.** `macos-arm64-debug`, `macos-arm64-release`, `macos-arm64-asan` and `macos-arm64-tsan`
 (Ninja, `CMAKE_OSX_ARCHITECTURES=arm64`). The local `dev*` presets inherit them; in `dev-local`,
-`CMAKE_PREFIX_PATH` lists Homebrew's prefix and the json-schema-validator prefix
+`CMAKE_PREFIX_PATH` lists Homebrew's prefix and the jsoncons prefix
 ([developer-guide.md](developer-guide.md#local-presets)). `ci-macos-arm64-release` builds against a
 dependency bundle ([The CI presets](#the-ci-presets)).
 
@@ -380,8 +358,8 @@ that an engine such as libRoadRunner can generate code, and
 
 Not yet verified: nothing in this section has been built or run.
 
-**Dependencies.** Distribution packages provide everything except json-schema-validator, which is
-built from source ([json-schema-validator](#json-schema-validator)):
+**Dependencies.** Distribution packages provide everything except jsoncons 1.10.0, which
+configuring with `PRAENORA_FETCH_DEPENDENCIES=ON` downloads ([jsoncons](#jsoncons)):
 
 ```sh
 sudo apt install cmake ninja-build g++ nlohmann-json3-dev libyaml-cpp-dev libspdlog-dev libgtest-dev swig python3-dev
@@ -428,8 +406,8 @@ with `UNSUPPORTED`).
 Not yet verified: nothing in this section has been built or run.
 
 **Toolchain and dependencies.** Visual Studio 2022 with the C++ workload, CMake 3.24 or newer, and
-the libraries from vcpkg or conda-forge (json-schema-validator built from source where they do not
-provide it, as in [json-schema-validator](#json-schema-validator)). Keep the shared MSVC runtime
+the libraries from vcpkg or conda-forge (jsoncons from vcpkg, or downloaded as in
+[jsoncons](#jsoncons)). Keep the shared MSVC runtime
 library (`/MD`, CMake's default) and the dynamic vcpkg triplets (such as `x64-windows`): the public
 C++ API passes standard-library types between the runtime DLL and its users, which only works when
 both use the same C runtime. Builds use `_WIN32_WINNT=0x0A00` (Windows 10).

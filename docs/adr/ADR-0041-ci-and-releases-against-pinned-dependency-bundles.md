@@ -10,7 +10,9 @@
 Until now every build and test of this repository ran on a developer's machine, on macOS arm64
 only: Linux x86-64 and Windows x86-64 have presets and portable code but have never been built, and
 there were no release archives. The engines of the service providers (libRoadRunner with its LLVM,
-libAntimony) and json-schema-validator come from no package manager ready to use, so a build on
+libAntimony) come from no package manager ready to use (json-schema-validator did too, until
+[ADR-0043](ADR-0043-json-schema-dialects-and-validator.md) replaced it with the header-only jsoncons,
+which the `ci-*` presets fetch), so a build on
 another machine first needs them built.
 
 The repository praenora-runtime-deps builds them, with nlohmann/json, into one dependency bundle
@@ -80,7 +82,7 @@ package's included, so a release could never carry a new version.
   FetchContent's content name, for GoogleTest), rather than taken from apt, Homebrew or vcpkg: the
   archives then link yaml-cpp and spdlog statically and need only the system's libraries, what a
   job builds does not depend on the packages of its runner image, and these jobs are the first to
-  build the fetched dependencies. nlohmann/json and json-schema-validator come from the bundle,
+  build the fetched dependencies. nlohmann/json comes from the bundle (and jsoncons is fetched, as the bundle does not hold it),
   which is first on `CMAKE_PREFIX_PATH`.
 - **A step checks the archive's libraries** after the archive is made, since no test of the tree
   shows what an archive needs, and the smoke test of the release procedure, on a Mac with
@@ -122,7 +124,7 @@ package's included, so a release could never carry a new version.
   `praenora providers list --json` of the Linux archive, run on the release job's runner, the image
   the archive was built on; the pinned release of praenora-runtime-deps; and the license
   paragraph: this repository's files are MIT, the runtime (yaml-cpp, spdlog with the fmt library
-  it bundles, json-schema-validator, nlohmann/json) and the providers (libRoadRunner with LLVM,
+  it bundles, jsoncons, nlohmann/json) and the providers (libRoadRunner with LLVM,
   libSBML and libroadrunner-deps' other libraries; libAntimony) hold third-party code, linked
   statically or compiled in from its headers, that keeps its own licenses, whose files each
   archive holds in `share/praenora/licenses/`, and the terms of NLEQ1 and NLEQ2 are open

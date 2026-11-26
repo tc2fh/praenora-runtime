@@ -121,7 +121,7 @@ flowchart TB
 - The runtime compiles once, into an OBJECT library. The shared library exports only the public
   API (the `praenora` namespace); statically linked dependencies stay internal. White-box tests link
   the objects directly, so they can test internals.
-- Third-party libraries (nlohmann/json, json-schema-validator, yaml-cpp, spdlog) link privately.
+- Third-party libraries (nlohmann/json, jsoncons, yaml-cpp, spdlog) link privately.
   Public headers use only the standard library and Praenora types
   ([ADR-0023](adr/ADR-0023-public-cpp-api.md)).
 - Modules are always `MODULE` libraries and the runtime always a `SHARED` library;
