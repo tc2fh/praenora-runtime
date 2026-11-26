@@ -4,6 +4,7 @@
 - Date: 2026-11-10
 - Supersedes: none
 - Superseded by: none
+- Amended by: [ADR-0043](ADR-0043-json-schema-dialects-and-validator.md) (the schemas the runtime ships, and a module's `parameters_schema`, may be 2020-12; the reference below is the draft-07 text this ADR was written against)
 
 ## Context
 
