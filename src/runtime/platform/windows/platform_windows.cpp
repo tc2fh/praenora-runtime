@@ -12,6 +12,8 @@
 
 #include <cstddef>
 #include <cstring>
+#include <exception>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -58,7 +60,40 @@ std::string narrow(const wchar_t* data, std::size_t length) {
 // runtime still loads on earlier versions.
 using SetThreadDescriptionFn = HRESULT(WINAPI*)(HANDLE, PCWSTR);
 
+struct StackTask {
+    const std::function<void()>* task = nullptr;
+    std::exception_ptr error;
+};
+
+DWORD WINAPI run_stack_task(LPVOID argument) {
+    auto* task = static_cast<StackTask*>(argument);
+    try {
+        (*task->task)();
+    } catch (...) {
+        task->error = std::current_exception();
+    }
+    return 0;
+}
+
 } // namespace
+
+void run_on_thread_with_stack(std::size_t stack_bytes, const std::function<void()>& task) {
+    StackTask state;
+    state.task = &task;
+    // The size is a reservation: the stack is committed as it is used.
+    HANDLE thread = CreateThread(nullptr, stack_bytes, run_stack_task, &state,
+                                 STACK_SIZE_PARAM_IS_A_RESERVATION, nullptr);
+    if (thread == nullptr) {
+        throw ThreadStartError("cannot start a thread with a stack of " +
+                               std::to_string(stack_bytes) + " bytes (error " +
+                               std::to_string(GetLastError()) + ")");
+    }
+    WaitForSingleObject(thread, INFINITE);
+    CloseHandle(thread);
+    if (state.error) {
+        std::rethrow_exception(state.error);
+    }
+}
 
 std::optional<std::string> environment_variable(const char* name) {
     const std::wstring wide_name = widen(name);
