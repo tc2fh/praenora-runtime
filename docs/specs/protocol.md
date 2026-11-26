@@ -16,8 +16,10 @@ the rules of workflow graphs in [workflow-definitions.md](workflow-definitions.m
 
 ## Documents and schemas
 
-Every Praenora document is a JSON object validated against a JSON Schema (draft-07; a schema may
-declare 2020-12) before it is used ([ADR-0043](../adr/ADR-0043-json-schema-dialects-and-validator.md),
+Every Praenora document is a JSON object validated against a JSON Schema before it is used. The
+schemas of the runtime ([`spec/schemas/`](../../spec/schemas/) and the data schemas of the catalog's
+message types) are JSON Schema 2020-12; a module's `parameters_schema` and a message type from an
+extra catalog directory may also be draft-07 ([manifest.md](manifest.md)) ([ADR-0043](../adr/ADR-0043-json-schema-dialects-and-validator.md),
 which replaces [ADR-0008](../adr/ADR-0008-json-schema-draft-07-embedded-schemas.md)):
 
 - A document that has a `kind` carries it with a constant value per schema, together with
@@ -226,8 +228,15 @@ schema of its kind:
   Entries of different kinds MAY share an `id@version`. A second entry of one kind with the same
   `id@version` is `CATALOG_ENTRY_DUPLICATE`, also when it comes from an extra directory: an entry is
   never replaced.
-- A message type's `schema` is the JSON Schema (draft-07, or 2020-12 if it declares it) of its `data`; it MUST compile, or the catalog
-  does not load (`SCHEMA_VIOLATION`).
+- A message type's `schema` is the JSON Schema (2020-12 for the embedded entries; draft-07, or
+  2020-12 if it declares it, for an entry from an extra directory) of its `data`; it MUST compile,
+  or the catalog does not load (`SCHEMA_VIOLATION`). A 2020-12 schema MUST also stay within what the
+  AsyncAPI export expresses (AsyncAPI 3.0.0 reads draft-07): no `prefixItems`, `unevaluatedItems`,
+  `unevaluatedProperties`, `dependentRequired`, `dependentSchemas`, `$dynamicRef`, `$dynamicAnchor`,
+  `$anchor`, `minContains` or `maxContains`, no `$id` but the root's, no nesting deeper than 256
+  levels, and no keyword but `title`, `description`, `$comment` or `examples` beside a `$ref`
+  (entries of the root `$defs` that no reference reaches are not looked at); otherwise the catalog
+  does not load (`SCHEMA_VIOLATION`, at `/schema`).
 - `status` is `draft`, `stable` or `deprecated`. It informs users; the runtime treats every status
   alike.
 - An entry's digest is the SHA-256 of its canonical JSON. The digests of the entries a run uses are

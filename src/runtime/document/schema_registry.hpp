@@ -1,6 +1,6 @@
-// The schemas of the Praenora document kinds: one draft-07 schema per (kind, major.minor), in files
-// named <kind>.<major>.<minor>.schema.json. Every such schema must have exactly the $id
-// urn:praenora:schema:<kind>:<major>.<minor>.
+// The schemas of the Praenora document kinds: one schema per (kind, major.minor), 2020-12 for the
+// ones the runtime ships, in files named <kind>.<major>.<minor>.schema.json. Every such schema
+// must have exactly the $id urn:praenora:schema:<kind>:<major>.<minor>.
 #ifndef PRAENORA_RUNTIME_DOCUMENT_SCHEMA_REGISTRY_HPP
 #define PRAENORA_RUNTIME_DOCUMENT_SCHEMA_REGISTRY_HPP
 

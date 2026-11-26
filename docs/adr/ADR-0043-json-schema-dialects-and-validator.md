@@ -30,6 +30,25 @@ the runtime today.
   dialect every Praenora schema has had; a module's `parameters_schema` without `$schema` therefore
   means what it meant. Any other `$schema` (draft-04, draft-06, 2019-09, unknown) is refused with
   `SCHEMA_VIOLATION`, although the library reads them.
+- **The schemas the runtime owns are 2020-12.** The 19 document schemas in `spec/schemas` and the
+  data schemas of the catalog's message types declare 2020-12 (`$defs`, `dependentRequired`, no
+  `definitions`, no `dependencies`). They were rewritten from draft-07 by
+  `tools/migrate_schemas_to_2020_12.py`, which can be run again (`--check` changes nothing), in a
+  second change after the validator swap, so each could be checked on its own. A module's
+  `parameters_schema` and a message type from an extra catalog directory keep the dialect they
+  declare. The runtime's own test fixtures for those stay draft-07 as coverage of that path.
+- **The catalog keeps message-type schemas within what AsyncAPI 3.0.0 expresses.** AsyncAPI 3.0.0
+  reads draft-07 JSON Schema, and the export inlines a message type's schema into the document. A
+  message type whose schema declares 2020-12 is refused (`SCHEMA_VIOLATION` at `/schema`) when it
+  uses `prefixItems`, `unevaluatedItems`, `unevaluatedProperties`, `dependentRequired`,
+  `dependentSchemas`, `$dynamicRef`, `$dynamicAnchor`, `$anchor`, `minContains` or `maxContains`; an
+  `$id` other than the root's; nesting deeper than 256 levels (reported, not skipped); or a keyword
+  other than `title`, `description`, `$comment` or `examples` beside a `$ref` (the export drops the
+  others, whether the `$ref` is a string or not). Entries of the root `$defs` that no reference
+  reaches are not looked at, because the export inlines references and erases `$defs`, so they
+  never appear in a document; a referenced entry is checked, however it is reached. A test holds
+  the envelope, which the export embeds likewise, to the same rule. The export erases `$defs` as
+  well as `definitions`; its output did not change.
 - **The validator is jsoncons** (the `jsonschema` extension; Boost Software License 1.0; header-only;
   C++11), required exactly, `find_package(jsoncons 1.10.0 EXACT CONFIG)` and the pin (the reporter's signature changed in 1.7, and the adapter reads three message texts, which a test pins), commit
   `9e57e421285422d7aeeb5aa7dc839f6a19121ee6`. It is found with `find_package(jsoncons CONFIG)` and,
@@ -46,8 +65,7 @@ the runtime today.
   documents `pmp_version`), one schema file per (kind, major.minor); schemas and catalog entries
   are embedded in the runtime and installed to `share/praenora/`; each schema has the `$id`
   `urn:praenora:schema:<kind>:<major>.<minor>`; the runtime does not validate `ode-uq-spec`
-  artifacts unless a feature says so (the P6 descriptor, a later change); the 19 document schemas
-  and the catalog's message-type schemas stay draft-07 in this change; the builder notes on
+  artifacts unless a feature says so (the P6 descriptor, a later change); the builder notes on
   embedding, the registry, self-contained schemas, durations, run record shapes and `if`/`then`/`else`
   stand.
 - **References.** External `$ref`s may name an embedded Praenora schema by URN or the meta-schema of
@@ -196,9 +214,12 @@ the runtime today.
 - **valijson.** No 2019-09 or 2020-12 support, and none planned.
 - **Two libraries** (pboettch for runtime schemas, another for spec schemas). Two sets of semantics
   and two dependencies for the module authors and the build to carry.
-- **Migrating the runtime-owned schemas to 2020-12 in the same change.** Decided as the end state
-  (the owner chose it), delivered as a second change after this one, so that the library swap is
+- **Migrating the runtime-owned schemas to 2020-12 in the same change as the swap.** The owner chose
+  2020-12 as the end state; it was delivered as a second change, so that the library swap was
   checked on its own with every schema still draft-07.
+- **Keeping the 8 schemas AsyncAPI embeds (the message-type data schemas and the envelope) in
+  draft-07.** Two dialects in the repository for good; instead the 2020-12 ones are held to the
+  draft-07-compatible subset by the catalog rule above.
 - **2020-12 as the default for a schema without `$schema`.** Shorter long term, but changes what
   existing manifests mean (`definitions` references, `dependencies`).
 
@@ -212,8 +233,11 @@ the runtime today.
   (`PRAENORA_FETCH_JSON_SCHEMA_VALIDATOR`, the AddressSanitizer option in the official AsyncAPI
   tests) is gone, because jsoncons is compiled with the tree's flags.
 - The dependency bundle can drop the validator it no longer needs when its next release is made.
-- Open: migrating the runtime-owned schemas to 2020-12 and the check that keeps the schemas AsyncAPI
-  embeds within the draft-07-compatible subset (AsyncAPI 3.0.0 cannot express more).
+- The digest of each of the 7 embedded message types changed with the move of its data schema to
+  2020-12: the digest is the SHA-256 of the whole entry, which holds the schema's bytes as they
+  are (here `$schema`, `$defs` for `definitions` and the `$ref` paths, `dependentRequired` for
+  `dependencies`), so any change to a data schema changes it. The fingerprints of workflows that
+  use them changed once, as they do with each runtime version ([reproducibility.md](../specs/reproducibility.md)).
 
 ## References
 

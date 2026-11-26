@@ -8,7 +8,7 @@ connections come from the workflow definition
 
 - **Kind and format:** `kind: workflow-config`, `format_version: "0.1.0"`.
 - **Schema:** [`spec/schemas/workflow-config.0.1.schema.json`](../spec/schemas/workflow-config.0.1.schema.json)
-  (JSON Schema draft-07), embedded in the runtime: `praenora schema show workflow-config`.
+  (JSON Schema 2020-12), embedded in the runtime: `praenora schema show workflow-config`.
 - **Example:** [`examples/workflows/estimate-predict/workflow.yaml`](../examples/workflows/estimate-predict/workflow.yaml),
   which sets every section below.
 
