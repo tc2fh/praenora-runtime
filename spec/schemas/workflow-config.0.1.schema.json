@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:praenora:schema:workflow-config:0.1",
   "title": "Praenora workflow configuration",
   "description": "Pins a workflow definition and binds its inputs and steps to data and modules.",
@@ -15,7 +15,7 @@
       "const": "workflow-config"
     },
     "format_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "workflow": {
       "type": "object",
@@ -26,10 +26,10 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "$ref": "#/definitions/catalog_id"
+          "$ref": "#/$defs/catalog_id"
         },
         "version": {
-          "$ref": "#/definitions/semver"
+          "$ref": "#/$defs/semver"
         }
       }
     },
@@ -44,16 +44,16 @@
           "default": 0
         },
         "ticks": {
-          "$ref": "#/definitions/count"
+          "$ref": "#/$defs/count"
         },
         "time": {
-          "$ref": "#/definitions/time_base"
+          "$ref": "#/$defs/time_base"
         },
         "timeouts": {
-          "$ref": "#/definitions/timeouts"
+          "$ref": "#/$defs/timeouts"
         },
         "isolation": {
-          "$ref": "#/definitions/isolation"
+          "$ref": "#/$defs/isolation"
         }
       }
     },
@@ -114,16 +114,16 @@
           "additionalProperties": false,
           "properties": {
             "module": {
-              "$ref": "#/definitions/module_ref"
+              "$ref": "#/$defs/module_ref"
             },
             "parameters": {
               "type": "object"
             },
             "timeouts": {
-              "$ref": "#/definitions/timeouts"
+              "$ref": "#/$defs/timeouts"
             },
             "isolation": {
-              "$ref": "#/definitions/isolation"
+              "$ref": "#/$defs/isolation"
             },
             "log_level": {
               "enum": [
@@ -199,7 +199,7 @@
           ]
         },
         "status_interval": {
-          "$ref": "#/definitions/duration"
+          "$ref": "#/$defs/duration"
         }
       }
     }
@@ -208,7 +208,7 @@
     "^x-": {}
   },
   "additionalProperties": false,
-  "definitions": {
+  "$defs": {
     "catalog_id": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*$"
@@ -270,10 +270,10 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "$ref": "#/definitions/module_name"
+          "$ref": "#/$defs/module_name"
         },
         "version": {
-          "$ref": "#/definitions/semver"
+          "$ref": "#/$defs/semver"
         }
       }
     },
@@ -306,13 +306,13 @@
       "additionalProperties": false,
       "properties": {
         "invoke": {
-          "$ref": "#/definitions/duration"
+          "$ref": "#/$defs/duration"
         },
         "lifecycle": {
-          "$ref": "#/definitions/duration"
+          "$ref": "#/$defs/duration"
         },
         "cancel_grace": {
-          "$ref": "#/definitions/duration"
+          "$ref": "#/$defs/duration"
         }
       }
     }

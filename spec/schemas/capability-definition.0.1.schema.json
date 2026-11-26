@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:praenora:schema:capability-definition:0.1",
   "title": "Praenora capability definition",
   "description": "A catalog entry: the typed input and output ports of a capability.",
@@ -18,16 +18,16 @@
       "const": "capability-definition"
     },
     "format_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "id": {
-      "$ref": "#/definitions/catalog_id"
+      "$ref": "#/$defs/catalog_id"
     },
     "version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "status": {
-      "$ref": "#/definitions/status"
+      "$ref": "#/$defs/status"
     },
     "summary": {
       "type": "string"
@@ -36,7 +36,7 @@
       "type": "object",
       "patternProperties": {
         "^(?!(inputs|outputs)$)[a-z][a-z0-9_]*$": {
-          "$ref": "#/definitions/capability_port"
+          "$ref": "#/$defs/capability_port"
         }
       },
       "additionalProperties": false
@@ -45,7 +45,7 @@
       "type": "object",
       "patternProperties": {
         "^(?!(inputs|outputs)$)[a-z][a-z0-9_]*$": {
-          "$ref": "#/definitions/capability_port"
+          "$ref": "#/$defs/capability_port"
         }
       },
       "additionalProperties": false
@@ -55,7 +55,7 @@
     "^x-": {}
   },
   "additionalProperties": false,
-  "definitions": {
+  "$defs": {
     "capability_port": {
       "type": "object",
       "required": [
@@ -66,10 +66,10 @@
       "additionalProperties": false,
       "properties": {
         "type": {
-          "$ref": "#/definitions/catalog_id"
+          "$ref": "#/$defs/catalog_id"
         },
         "type_version": {
-          "$ref": "#/definitions/semver"
+          "$ref": "#/$defs/semver"
         },
         "required": {
           "type": "boolean"

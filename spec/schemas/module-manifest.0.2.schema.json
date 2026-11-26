@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:praenora:schema:module-manifest:0.2",
   "title": "Praenora Module Manifest",
   "description": "Describes one native module library: identity, ABI, platform, capabilities, parameters and the runtime services it requires or can use. Discovered as *.pmm.json files.",
@@ -20,7 +20,7 @@
       "const": "module-manifest"
     },
     "format_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "module": {
       "type": "object",
@@ -31,10 +31,10 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "$ref": "#/definitions/module_name"
+          "$ref": "#/$defs/module_name"
         },
         "version": {
-          "$ref": "#/definitions/semver"
+          "$ref": "#/$defs/semver"
         },
         "summary": {
           "type": "string"
@@ -69,10 +69,10 @@
       }
     },
     "pmp_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "sdk_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "library": {
       "type": "object",
@@ -87,7 +87,7 @@
           "description": "Relative to the manifest's directory."
         },
         "sha256": {
-          "$ref": "#/definitions/sha256"
+          "$ref": "#/$defs/sha256"
         },
         "dependency_paths": {
           "type": "array",
@@ -125,7 +125,7 @@
       "type": "array",
       "minItems": 1,
       "items": {
-        "$ref": "#/definitions/capability_ref"
+        "$ref": "#/$defs/capability_ref"
       }
     },
     "requires": {
@@ -135,7 +135,7 @@
         "services": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/service_requirement"
+            "$ref": "#/$defs/service_requirement"
           },
           "description": "The runtime services the module requires (optional false) or can use (optional true); unique by name and major."
         }
@@ -185,7 +185,7 @@
     "^x-": {}
   },
   "additionalProperties": false,
-  "definitions": {
+  "$defs": {
     "capability_ref": {
       "type": "object",
       "required": [
@@ -195,10 +195,10 @@
       "additionalProperties": false,
       "properties": {
         "id": {
-          "$ref": "#/definitions/catalog_id"
+          "$ref": "#/$defs/catalog_id"
         },
         "version": {
-          "$ref": "#/definitions/semver"
+          "$ref": "#/$defs/semver"
         }
       }
     },
@@ -231,7 +231,7 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "$ref": "#/definitions/service_name"
+          "$ref": "#/$defs/service_name"
         },
         "major": {
           "type": "integer",

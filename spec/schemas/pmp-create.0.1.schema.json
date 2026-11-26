@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:praenora:schema:pmp-create:0.1",
   "title": "PMP create document",
   "description": "What create() receives: the step, its capability and module, and the resolved parameters (validated, defaults applied).",
@@ -13,16 +13,16 @@
   ],
   "properties": {
     "pmp_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "step": {
-      "$ref": "#/definitions/name"
+      "$ref": "#/$defs/name"
     },
     "capability": {
-      "$ref": "#/definitions/capability_ref"
+      "$ref": "#/$defs/capability_ref"
     },
     "module": {
-      "$ref": "#/definitions/module_ref"
+      "$ref": "#/$defs/module_ref"
     },
     "parameters": {
       "type": "object"
@@ -32,7 +32,7 @@
     "^x-": {}
   },
   "additionalProperties": false,
-  "definitions": {
+  "$defs": {
     "capability_ref": {
       "type": "object",
       "required": [
@@ -42,10 +42,10 @@
       "additionalProperties": false,
       "properties": {
         "id": {
-          "$ref": "#/definitions/catalog_id"
+          "$ref": "#/$defs/catalog_id"
         },
         "version": {
-          "$ref": "#/definitions/semver"
+          "$ref": "#/$defs/semver"
         }
       }
     },
@@ -66,10 +66,10 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "$ref": "#/definitions/module_name"
+          "$ref": "#/$defs/module_name"
         },
         "version": {
-          "$ref": "#/definitions/semver"
+          "$ref": "#/$defs/semver"
         }
       }
     },

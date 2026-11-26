@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:praenora:schema:pmp-error:0.1",
   "title": "PMP error document",
   "description": "What a module writes to error_json when a call fails.",
@@ -26,5 +26,5 @@
     "^x-": {}
   },
   "additionalProperties": false,
-  "definitions": {}
+  "$defs": {}
 }

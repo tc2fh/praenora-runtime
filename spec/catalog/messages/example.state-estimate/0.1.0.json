@@ -6,7 +6,7 @@
   "status": "stable",
   "summary": "State estimates per series and variable (example).",
   "schema": {
-    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "required": [
       "time_unit",

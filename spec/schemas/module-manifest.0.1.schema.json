@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:praenora:schema:module-manifest:0.1",
   "title": "Praenora Module Manifest",
   "description": "Describes one native module library: identity, ABI, platform, capabilities and parameters. Discovered as *.pmm.json files.",
@@ -20,7 +20,7 @@
       "const": "module-manifest"
     },
     "format_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "module": {
       "type": "object",
@@ -31,10 +31,10 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "$ref": "#/definitions/module_name"
+          "$ref": "#/$defs/module_name"
         },
         "version": {
-          "$ref": "#/definitions/semver"
+          "$ref": "#/$defs/semver"
         },
         "summary": {
           "type": "string"
@@ -69,10 +69,10 @@
       }
     },
     "pmp_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "sdk_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "library": {
       "type": "object",
@@ -87,7 +87,7 @@
           "description": "Relative to the manifest's directory."
         },
         "sha256": {
-          "$ref": "#/definitions/sha256"
+          "$ref": "#/$defs/sha256"
         },
         "dependency_paths": {
           "type": "array",
@@ -125,7 +125,7 @@
       "type": "array",
       "minItems": 1,
       "items": {
-        "$ref": "#/definitions/capability_ref"
+        "$ref": "#/$defs/capability_ref"
       }
     },
     "parameters_schema": {
@@ -172,7 +172,7 @@
     "^x-": {}
   },
   "additionalProperties": false,
-  "definitions": {
+  "$defs": {
     "capability_ref": {
       "type": "object",
       "required": [
@@ -182,10 +182,10 @@
       "additionalProperties": false,
       "properties": {
         "id": {
-          "$ref": "#/definitions/catalog_id"
+          "$ref": "#/$defs/catalog_id"
         },
         "version": {
-          "$ref": "#/definitions/semver"
+          "$ref": "#/$defs/semver"
         }
       }
     },

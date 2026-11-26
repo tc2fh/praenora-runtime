@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:praenora:schema:workflow-definition:0.1",
   "title": "Praenora workflow definition",
   "description": "A catalog entry: the workflow's typed inputs and outputs, its steps (by capability) and the connections between them.",
@@ -19,16 +19,16 @@
       "const": "workflow-definition"
     },
     "format_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "name": {
-      "$ref": "#/definitions/catalog_id"
+      "$ref": "#/$defs/catalog_id"
     },
     "version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "status": {
-      "$ref": "#/definitions/status"
+      "$ref": "#/$defs/status"
     },
     "summary": {
       "type": "string"
@@ -37,7 +37,7 @@
       "type": "object",
       "patternProperties": {
         "^(?!(inputs|outputs)$)[a-z][a-z0-9_]*$": {
-          "$ref": "#/definitions/port_type"
+          "$ref": "#/$defs/port_type"
         }
       },
       "additionalProperties": false
@@ -46,7 +46,7 @@
       "type": "object",
       "patternProperties": {
         "^(?!(inputs|outputs)$)[a-z][a-z0-9_]*$": {
-          "$ref": "#/definitions/port_type"
+          "$ref": "#/$defs/port_type"
         }
       },
       "additionalProperties": false
@@ -63,10 +63,10 @@
           "additionalProperties": false,
           "properties": {
             "capability": {
-              "$ref": "#/definitions/catalog_id"
+              "$ref": "#/$defs/catalog_id"
             },
             "capability_version": {
-              "$ref": "#/definitions/semver"
+              "$ref": "#/$defs/semver"
             }
           }
         }
@@ -85,10 +85,10 @@
         "additionalProperties": false,
         "properties": {
           "from": {
-            "$ref": "#/definitions/endpoint"
+            "$ref": "#/$defs/endpoint"
           },
           "to": {
-            "$ref": "#/definitions/endpoint"
+            "$ref": "#/$defs/endpoint"
           },
           "delay": {
             "type": "integer",
@@ -104,7 +104,7 @@
     "^x-": {}
   },
   "additionalProperties": false,
-  "definitions": {
+  "$defs": {
     "catalog_id": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*$"
@@ -122,10 +122,10 @@
       "additionalProperties": false,
       "properties": {
         "type": {
-          "$ref": "#/definitions/catalog_id"
+          "$ref": "#/$defs/catalog_id"
         },
         "type_version": {
-          "$ref": "#/definitions/semver"
+          "$ref": "#/$defs/semver"
         }
       }
     },

@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:praenora:schema:pmp-envelope:0.1",
   "title": "PMP message envelope",
   "description": "A message as the runtime delivers it: identity, type, source endpoint, tick and logical time, and the data. Envelopes carry no wall-clock time.",
@@ -16,7 +16,7 @@
   ],
   "properties": {
     "pmp_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "id": {
       "type": "string",
@@ -24,16 +24,16 @@
       "description": "<first 16 hex digits of the run fingerprint>:<tick>:<source>"
     },
     "type": {
-      "$ref": "#/definitions/catalog_id"
+      "$ref": "#/$defs/catalog_id"
     },
     "type_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "source": {
-      "$ref": "#/definitions/endpoint"
+      "$ref": "#/$defs/endpoint"
     },
     "tick": {
-      "$ref": "#/definitions/count"
+      "$ref": "#/$defs/count"
     },
     "logical_time": {
       "type": "number"
@@ -46,7 +46,7 @@
     "^x-": {}
   },
   "additionalProperties": false,
-  "definitions": {
+  "$defs": {
     "catalog_id": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*$"

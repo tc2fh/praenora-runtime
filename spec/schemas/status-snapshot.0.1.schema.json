@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:praenora:schema:status-snapshot:0.1",
   "title": "Praenora status snapshot",
   "description": "The state, health and per-step metrics of a workflow at one moment.",
@@ -18,13 +18,13 @@
       "const": "status-snapshot"
     },
     "format_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "generated_at": {
-      "$ref": "#/definitions/timestamp"
+      "$ref": "#/$defs/timestamp"
     },
     "runtime_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "pid": {
       "type": "integer"
@@ -43,10 +43,10 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "$ref": "#/definitions/catalog_id"
+          "$ref": "#/$defs/catalog_id"
         },
         "version": {
-          "$ref": "#/definitions/semver"
+          "$ref": "#/$defs/semver"
         },
         "fingerprint": {
           "type": "string",
@@ -75,7 +75,7 @@
         "started_at": {
           "anyOf": [
             {
-              "$ref": "#/definitions/timestamp"
+              "$ref": "#/$defs/timestamp"
             },
             {
               "type": "null"
@@ -83,15 +83,15 @@
           ]
         },
         "uptime_ns": {
-          "$ref": "#/definitions/duration_ns"
+          "$ref": "#/$defs/duration_ns"
         },
         "ticks_completed": {
-          "$ref": "#/definitions/count"
+          "$ref": "#/$defs/count"
         },
         "current_tick": {
           "anyOf": [
             {
-              "$ref": "#/definitions/count"
+              "$ref": "#/$defs/count"
             },
             {
               "type": "null"
@@ -105,12 +105,12 @@
           ]
         },
         "last_tick_duration_ns": {
-          "$ref": "#/definitions/duration_ns"
+          "$ref": "#/$defs/duration_ns"
         },
         "last_error": {
           "anyOf": [
             {
-              "$ref": "#/definitions/error_record"
+              "$ref": "#/$defs/error_record"
             },
             {
               "type": "null"
@@ -137,13 +137,13 @@
         "additionalProperties": false,
         "properties": {
           "step": {
-            "$ref": "#/definitions/name"
+            "$ref": "#/$defs/name"
           },
           "module_name": {
-            "$ref": "#/definitions/module_name"
+            "$ref": "#/$defs/module_name"
           },
           "module_version": {
-            "$ref": "#/definitions/semver"
+            "$ref": "#/$defs/semver"
           },
           "state": {
             "enum": [
@@ -159,31 +159,31 @@
             ]
           },
           "invocations": {
-            "$ref": "#/definitions/count"
+            "$ref": "#/$defs/count"
           },
           "succeeded": {
-            "$ref": "#/definitions/count"
+            "$ref": "#/$defs/count"
           },
           "failed": {
-            "$ref": "#/definitions/count"
+            "$ref": "#/$defs/count"
           },
           "timed_out": {
-            "$ref": "#/definitions/count"
+            "$ref": "#/$defs/count"
           },
           "cancelled": {
-            "$ref": "#/definitions/count"
+            "$ref": "#/$defs/count"
           },
           "last_duration_ns": {
-            "$ref": "#/definitions/duration_ns"
+            "$ref": "#/$defs/duration_ns"
           },
           "total_duration_ns": {
-            "$ref": "#/definitions/duration_ns"
+            "$ref": "#/$defs/duration_ns"
           },
           "min_duration_ns": {
-            "$ref": "#/definitions/duration_ns"
+            "$ref": "#/$defs/duration_ns"
           },
           "max_duration_ns": {
-            "$ref": "#/definitions/duration_ns"
+            "$ref": "#/$defs/duration_ns"
           },
           "mean_duration_ns": {
             "type": "number",
@@ -192,7 +192,7 @@
           "last_invocation_at": {
             "anyOf": [
               {
-                "$ref": "#/definitions/timestamp"
+                "$ref": "#/$defs/timestamp"
               },
               {
                 "type": "null"
@@ -202,7 +202,7 @@
           "last_success_at": {
             "anyOf": [
               {
-                "$ref": "#/definitions/timestamp"
+                "$ref": "#/$defs/timestamp"
               },
               {
                 "type": "null"
@@ -212,7 +212,7 @@
           "last_error": {
             "anyOf": [
               {
-                "$ref": "#/definitions/error_record"
+                "$ref": "#/$defs/error_record"
               },
               {
                 "type": "null"
@@ -227,7 +227,7 @@
     "^x-": {}
   },
   "additionalProperties": false,
-  "definitions": {
+  "$defs": {
     "catalog_id": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*$"
@@ -266,7 +266,7 @@
         "tick": {
           "anyOf": [
             {
-              "$ref": "#/definitions/count"
+              "$ref": "#/$defs/count"
             },
             {
               "type": "null"
@@ -276,7 +276,7 @@
         "at": {
           "anyOf": [
             {
-              "$ref": "#/definitions/timestamp"
+              "$ref": "#/$defs/timestamp"
             },
             {
               "type": "null"
@@ -292,7 +292,7 @@
         "location": {
           "anyOf": [
             {
-              "$ref": "#/definitions/source_location"
+              "$ref": "#/$defs/source_location"
             },
             {
               "type": "null"
@@ -344,7 +344,7 @@
           "minLength": 1
         }
       },
-      "dependencies": {
+      "dependentRequired": {
         "column": [
           "line"
         ]

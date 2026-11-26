@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:praenora:schema:module-check-report:0.1",
   "title": "Praenora module check report",
   "description": "The results of the contract checks of one module.",
@@ -15,13 +15,13 @@
       "const": "module-check-report"
     },
     "format_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "manifest": {
       "type": "string"
     },
     "module": {
-      "$ref": "#/definitions/module_ref"
+      "$ref": "#/$defs/module_ref"
     },
     "passed": {
       "type": "boolean"
@@ -59,7 +59,7 @@
     "^x-": {}
   },
   "additionalProperties": false,
-  "definitions": {
+  "$defs": {
     "module_name": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*$"
@@ -73,10 +73,10 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "$ref": "#/definitions/module_name"
+          "$ref": "#/$defs/module_name"
         },
         "version": {
-          "$ref": "#/definitions/semver"
+          "$ref": "#/$defs/semver"
         }
       }
     },

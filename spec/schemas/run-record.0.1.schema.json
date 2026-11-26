@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:praenora:schema:run-record:0.1",
   "title": "Praenora run record",
   "description": "What a run used (the hashed reproducibility section) and how it went (execution).",
@@ -16,10 +16,10 @@
       "const": "run-record"
     },
     "format_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "fingerprint": {
-      "$ref": "#/definitions/fingerprint"
+      "$ref": "#/$defs/fingerprint"
     },
     "reproducibility": {
       "type": "object",
@@ -46,7 +46,7 @@
           "additionalProperties": false,
           "properties": {
             "runtime": {
-              "$ref": "#/definitions/semver"
+              "$ref": "#/$defs/semver"
             },
             "abi": {
               "type": "object",
@@ -67,7 +67,7 @@
               }
             },
             "pmp": {
-              "$ref": "#/definitions/semver"
+              "$ref": "#/$defs/semver"
             }
           }
         },
@@ -81,33 +81,33 @@
           "additionalProperties": false,
           "properties": {
             "name": {
-              "$ref": "#/definitions/catalog_id"
+              "$ref": "#/$defs/catalog_id"
             },
             "version": {
-              "$ref": "#/definitions/semver"
+              "$ref": "#/$defs/semver"
             },
             "digest": {
-              "$ref": "#/definitions/sha256"
+              "$ref": "#/$defs/sha256"
             }
           }
         },
         "catalog": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/definitions/sha256"
+            "$ref": "#/$defs/sha256"
           },
           "description": "Digest of every catalog entry used, by id@version."
         },
         "time": {
-          "$ref": "#/definitions/time_base"
+          "$ref": "#/$defs/time_base"
         },
         "seed": {
-          "$ref": "#/definitions/seed"
+          "$ref": "#/$defs/seed"
         },
         "ticks": {
           "anyOf": [
             {
-              "$ref": "#/definitions/count"
+              "$ref": "#/$defs/count"
             },
             {
               "type": "null"
@@ -116,7 +116,7 @@
           "description": "The run's tick count; null when the run lasts until its replay inputs are exhausted."
         },
         "timeouts": {
-          "$ref": "#/definitions/timeouts"
+          "$ref": "#/$defs/timeouts"
         },
         "inputs": {
           "type": "object",
@@ -136,7 +136,7 @@
                   ]
                 },
                 "digest": {
-                  "$ref": "#/definitions/sha256"
+                  "$ref": "#/$defs/sha256"
                 },
                 "columns": {
                   "type": "object",
@@ -163,7 +163,7 @@
               "additionalProperties": false,
               "properties": {
                 "capability": {
-                  "$ref": "#/definitions/capability_ref"
+                  "$ref": "#/$defs/capability_ref"
                 },
                 "module": {
                   "type": "object",
@@ -177,19 +177,19 @@
                   "additionalProperties": false,
                   "properties": {
                     "name": {
-                      "$ref": "#/definitions/module_name"
+                      "$ref": "#/$defs/module_name"
                     },
                     "version": {
-                      "$ref": "#/definitions/semver"
+                      "$ref": "#/$defs/semver"
                     },
                     "manifest_sha256": {
-                      "$ref": "#/definitions/sha256"
+                      "$ref": "#/$defs/sha256"
                     },
                     "library_sha256": {
-                      "$ref": "#/definitions/sha256"
+                      "$ref": "#/$defs/sha256"
                     },
                     "sdk_version": {
-                      "$ref": "#/definitions/semver"
+                      "$ref": "#/$defs/semver"
                     }
                   }
                 },
@@ -197,10 +197,10 @@
                   "type": "object"
                 },
                 "seed": {
-                  "$ref": "#/definitions/seed"
+                  "$ref": "#/$defs/seed"
                 },
                 "timeouts": {
-                  "$ref": "#/definitions/timeouts"
+                  "$ref": "#/$defs/timeouts"
                 }
               }
             }
@@ -232,7 +232,7 @@
         "started_at": {
           "anyOf": [
             {
-              "$ref": "#/definitions/timestamp"
+              "$ref": "#/$defs/timestamp"
             },
             {
               "type": "null"
@@ -242,7 +242,7 @@
         "finished_at": {
           "anyOf": [
             {
-              "$ref": "#/definitions/timestamp"
+              "$ref": "#/$defs/timestamp"
             },
             {
               "type": "null"
@@ -254,12 +254,12 @@
           "description": "The final status snapshot (a status-snapshot document), written when the run ends."
         },
         "ticks_completed": {
-          "$ref": "#/definitions/count"
+          "$ref": "#/$defs/count"
         },
         "error": {
           "anyOf": [
             {
-              "$ref": "#/definitions/error_record"
+              "$ref": "#/$defs/error_record"
             },
             {
               "type": "null"
@@ -295,10 +295,10 @@
           "additionalProperties": false,
           "properties": {
             "seed": {
-              "$ref": "#/definitions/seed"
+              "$ref": "#/$defs/seed"
             },
             "ticks": {
-              "$ref": "#/definitions/count"
+              "$ref": "#/$defs/count"
             }
           },
           "description": "The run settings the caller overrode (CLI flags or API options); empty when none."
@@ -326,10 +326,10 @@
                   "type": "string"
                 },
                 "sha256": {
-                  "$ref": "#/definitions/sha256"
+                  "$ref": "#/$defs/sha256"
                 },
                 "messages": {
-                  "$ref": "#/definitions/count"
+                  "$ref": "#/$defs/count"
                 }
               }
             }
@@ -344,10 +344,10 @@
               "type": "string"
             },
             "sha256": {
-              "$ref": "#/definitions/sha256"
+              "$ref": "#/$defs/sha256"
             },
             "messages": {
-              "$ref": "#/definitions/count"
+              "$ref": "#/$defs/count"
             }
           }
         }
@@ -358,7 +358,7 @@
     "^x-": {}
   },
   "additionalProperties": false,
-  "definitions": {
+  "$defs": {
     "capability_ref": {
       "type": "object",
       "required": [
@@ -368,10 +368,10 @@
       "additionalProperties": false,
       "properties": {
         "id": {
-          "$ref": "#/definitions/catalog_id"
+          "$ref": "#/$defs/catalog_id"
         },
         "version": {
-          "$ref": "#/definitions/semver"
+          "$ref": "#/$defs/semver"
         }
       }
     },
@@ -417,7 +417,7 @@
         "tick": {
           "anyOf": [
             {
-              "$ref": "#/definitions/count"
+              "$ref": "#/$defs/count"
             },
             {
               "type": "null"
@@ -427,7 +427,7 @@
         "at": {
           "anyOf": [
             {
-              "$ref": "#/definitions/timestamp"
+              "$ref": "#/$defs/timestamp"
             },
             {
               "type": "null"
@@ -488,13 +488,13 @@
       "additionalProperties": false,
       "properties": {
         "invoke": {
-          "$ref": "#/definitions/duration"
+          "$ref": "#/$defs/duration"
         },
         "lifecycle": {
-          "$ref": "#/definitions/duration"
+          "$ref": "#/$defs/duration"
         },
         "cancel_grace": {
-          "$ref": "#/definitions/duration"
+          "$ref": "#/$defs/duration"
         }
       }
     },

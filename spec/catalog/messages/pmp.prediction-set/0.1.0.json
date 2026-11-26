@@ -6,7 +6,7 @@
   "status": "stable",
   "summary": "Predictions issued at one logical time (long form).",
   "schema": {
-    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "required": [
       "issued_at",

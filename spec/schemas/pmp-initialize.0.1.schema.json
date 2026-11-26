@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:praenora:schema:pmp-initialize:0.1",
   "title": "PMP initialize document",
   "description": "What initialize() receives: the run's fingerprint and the step seed, and the time base.",
@@ -11,7 +11,7 @@
   ],
   "properties": {
     "pmp_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "run": {
       "type": "object",
@@ -22,10 +22,10 @@
       "additionalProperties": false,
       "properties": {
         "fingerprint": {
-          "$ref": "#/definitions/fingerprint"
+          "$ref": "#/$defs/fingerprint"
         },
         "seed": {
-          "$ref": "#/definitions/seed"
+          "$ref": "#/$defs/seed"
         }
       }
     },
@@ -56,7 +56,7 @@
     "^x-": {}
   },
   "additionalProperties": false,
-  "definitions": {
+  "$defs": {
     "fingerprint": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"

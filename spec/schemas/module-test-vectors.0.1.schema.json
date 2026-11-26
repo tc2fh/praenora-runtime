@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:praenora:schema:module-test-vectors:0.1",
   "title": "Praenora module test vectors",
   "description": "Invocation cases with expected outputs, run by the contract checks.",
@@ -14,7 +14,7 @@
       "const": "module-test-vectors"
     },
     "format_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "cases": {
       "type": "array",
@@ -31,7 +31,7 @@
             "type": "string"
           },
           "capability": {
-            "$ref": "#/definitions/capability_ref"
+            "$ref": "#/$defs/capability_ref"
           },
           "parameters": {
             "type": "object",
@@ -44,7 +44,7 @@
             "default": 0
           },
           "time": {
-            "$ref": "#/definitions/time_base"
+            "$ref": "#/$defs/time_base"
           },
           "ticks": {
             "type": "array",
@@ -110,7 +110,7 @@
     "^x-": {}
   },
   "additionalProperties": false,
-  "definitions": {
+  "$defs": {
     "capability_ref": {
       "type": "object",
       "required": [
@@ -120,10 +120,10 @@
       "additionalProperties": false,
       "properties": {
         "id": {
-          "$ref": "#/definitions/catalog_id"
+          "$ref": "#/$defs/catalog_id"
         },
         "version": {
-          "$ref": "#/definitions/semver"
+          "$ref": "#/$defs/semver"
         }
       }
     },

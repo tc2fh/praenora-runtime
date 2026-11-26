@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:praenora:schema:message-type:0.1",
   "title": "Praenora message type",
   "description": "A catalog entry: a message type and the draft-07 schema of its data.",
@@ -17,16 +17,16 @@
       "const": "message-type"
     },
     "format_version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "id": {
-      "$ref": "#/definitions/catalog_id"
+      "$ref": "#/$defs/catalog_id"
     },
     "version": {
-      "$ref": "#/definitions/semver"
+      "$ref": "#/$defs/semver"
     },
     "status": {
-      "$ref": "#/definitions/status"
+      "$ref": "#/$defs/status"
     },
     "summary": {
       "type": "string"
@@ -40,7 +40,7 @@
     "^x-": {}
   },
   "additionalProperties": false,
-  "definitions": {
+  "$defs": {
     "catalog_id": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*$"
