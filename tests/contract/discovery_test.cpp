@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <filesystem>
+#include <fstream>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -453,4 +454,65 @@ TEST(Discovery, RecordsWhereEachManifestWasFound) {
     }
     // A manifest read directly was found on no search path.
     EXPECT_EQ(where(load_manifest(praenora::test::fixture_manifest("fx-echo"))), "nowhere");
+}
+
+// A module's parameters_schema is draft-07 (also without `$schema`) or 2020-12; anything else is
+// refused when the manifest is read.
+namespace {
+
+ModuleManifest manifest_with_parameters(const praenora::test::ScratchDir& scratch,
+                                        const nlohmann::json& parameters_schema) {
+    const fs::path source = praenora::test::fixture_manifest("fx-echo");
+    nlohmann::json document = praenora::detail::load_document_file(source).json;
+    const fs::path library = load_manifest(source).library_path;
+    fs::copy_file(library, scratch.path() / library.filename(),
+                  fs::copy_options::overwrite_existing);
+    document["library"]["path"] = library.filename().u8string();
+    document["parameters_schema"] = parameters_schema;
+    const fs::path path = scratch.path() / "module.pmm.json";
+    std::ofstream(path, std::ios::binary) << document.dump(2);
+    return load_manifest(path);
+}
+
+} // namespace
+
+TEST(Manifest, ParametersSchemaMayBe2020OrDraft07) {
+    const praenora::test::ScratchDir scratch;
+    const ModuleManifest modern = manifest_with_parameters(scratch, nlohmann::json::parse(R"({
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "$defs": {"fraction": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.5}},
+      "properties": {"gain": {"$ref": "#/$defs/fraction"}},
+      "unevaluatedProperties": false})"));
+    std::vector<praenora::detail::SchemaIssue> issues;
+    EXPECT_EQ(modern.parameters->apply_defaults(nlohmann::json::object(), issues).at("gain"), 0.5);
+    EXPECT_TRUE(issues.empty());
+    EXPECT_FALSE(modern.parameters->validate(nlohmann::json::parse(R"({"gain": 2})")).empty());
+    EXPECT_FALSE(modern.parameters->validate(nlohmann::json::parse(R"({"other": 1})")).empty());
+
+    // Without `$schema` the schema is draft-07.
+    const ModuleManifest plain = manifest_with_parameters(scratch, nlohmann::json::parse(R"({
+      "type": "object",
+      "definitions": {"fraction": {"type": "number", "maximum": 1, "default": 0.25}},
+      "properties": {"gain": {"$ref": "#/definitions/fraction"}}})"));
+    EXPECT_EQ(plain.parameters->apply_defaults(nlohmann::json::object(), issues).at("gain"), 0.25);
+    EXPECT_FALSE(plain.parameters->validate(nlohmann::json::parse(R"({"gain": 2})")).empty());
+}
+
+TEST(Manifest, ParametersSchemaOfAnotherDialectOrWithACycleIsRefused) {
+    for (const char* text : {
+             R"({"$schema": "https://json-schema.org/draft/2019-09/schema", "type": "object"})",
+             R"({"$schema": "http://json-schema.org/draft-04/schema#", "type": "object"})",
+             R"({"$ref": "#"})",
+         }) {
+        SCOPED_TRACE(text);
+        const praenora::test::ScratchDir scratch;
+        try {
+            manifest_with_parameters(scratch, nlohmann::json::parse(text));
+            FAIL() << "the manifest was accepted";
+        } catch (const praenora::Error& error) {
+            EXPECT_EQ(error.code(), ErrorCode::MANIFEST_INVALID);
+            EXPECT_TRUE(contains(error.what(), "not a valid JSON Schema")) << error.what();
+        }
+    }
 }

@@ -22,7 +22,7 @@ constexpr std::string_view kUsage =
     "usage: praenora schema list\n"
     "       praenora schema show <kind> [--format-version V]\n"
     "\n"
-    "list  the embedded JSON Schemas (draft-07), as <kind>@<major>.<minor>\n"
+    "list  the embedded JSON Schemas, as <kind>@<major>.<minor>\n"
     "show  the schema of documents of one kind, for format version V (major.minor or a whole\n"
     "      version; the highest one by default)\n";
 

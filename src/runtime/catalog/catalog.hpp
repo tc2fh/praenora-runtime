@@ -27,7 +27,7 @@ struct MessageTypeDef {
     std::string id;
     SemVer version;
     std::string status, summary;
-    nlohmann::json schema;                          // the draft-07 schema of the data
+    nlohmann::json schema;                          // the JSON Schema of the data
     std::shared_ptr<const CompiledSchema> compiled; // `schema`, compiled
     std::string digest;                             // sha256_hex(canonical_json(entry))
 };

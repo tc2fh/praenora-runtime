@@ -417,7 +417,7 @@ jobs:
                 "service providers \`roadrunner\` and \`antimony\` in the archives hold" \
                 "third-party code, linked statically or compiled in from its headers, which keeps" \
                 "its own licenses: in the runtime, yaml-cpp, spdlog with the fmt library it" \
-                "bundles, json-schema-validator and nlohmann/json; in the providers," \
+                "bundles, jsoncons and nlohmann/json; in the providers," \
                 "libRoadRunner with LLVM, libSBML and libroadrunner-deps' other libraries, and" \
                 "libAntimony. Each archive holds their license files in" \
                 "\`share/praenora/licenses/\`" \

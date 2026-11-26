@@ -86,6 +86,16 @@ foreach(_praenora_dependency IN LISTS PRAENORA_FETCHED_DEPENDENCIES)
     set(_praenora_notice_files ${_praenora_top_files})
     list(FILTER _praenora_notice_files INCLUDE REGEX "^[Nn][Oo][Tt][Ii][Cc][Ee]")
     list(APPEND _praenora_license_files ${_praenora_notice_files})
+    if(_praenora_dependency STREQUAL "jsoncons")
+        # Headers that carry the license text of code they include (MIT: a5hash by Aleksey Vaneev,
+        # Grisu3 by Florian Loitsch; Apache 2.0: MongoDB's BSON headers, which the JSON Schema
+        # code does not include). jsoncons' LICENSE covers its own code only.
+        list(APPEND _praenora_license_files
+            include/jsoncons/nonstd/a5hash.hpp
+            include/jsoncons/utility/detail/grisu3.hpp
+            include/jsoncons_ext/bson/bson_decimal128.hpp
+            include/jsoncons_ext/bson/bson_oid.hpp)
+    endif()
     if(_praenora_dependency STREQUAL "spdlog")
         file(GLOB _praenora_fmt_license LIST_DIRECTORIES false RELATIVE "${_praenora_source}"
             "${_praenora_source}/include/spdlog/fmt/bundled/*")

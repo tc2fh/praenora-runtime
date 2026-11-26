@@ -237,19 +237,6 @@ if(NOT PRAENORA_ASYNCAPI_SCHEMA STREQUAL "")
     # list value into separate arguments.
     set(_praenora_asyncapi_properties LABELS protocol
         ENVIRONMENT "PRAENORA_TEST_ASYNCAPI_SCHEMA=${_praenora_asyncapi_schema}")
-    # Compiling the official schema trips AddressSanitizer's container-overflow check when
-    # json-schema-validator is a library built without AddressSanitizer, and the report is false
-    # (docs/testing.md). An installed validator (an IMPORTED target) is taken to be built without
-    # it, as docs/platforms.md builds it; one built in this tree has the tree's flags, as with
-    # PRAENORA_FETCH_JSON_SCHEMA_VALIDATOR, or with PRAENORA_FETCH_DEPENDENCIES and none
-    # installed. With an installed validator, only these tests run with that check off, appended
-    # to the ASAN_OPTIONS that CTest runs with; the rest of the protocol label keeps it.
-    get_target_property(_praenora_validator_imported nlohmann_json_schema_validator::validator
-        IMPORTED)
-    if("address" IN_LIST PRAENORA_SANITIZERS AND _praenora_validator_imported)
-        list(APPEND _praenora_asyncapi_properties
-            ENVIRONMENT_MODIFICATION "ASAN_OPTIONS=string_append::detect_container_overflow=0")
-    endif()
     gtest_discover_tests(praenora_asyncapi_official_schema_tests
         DISCOVERY_MODE PRE_TEST
         PROPERTIES ${_praenora_asyncapi_properties})

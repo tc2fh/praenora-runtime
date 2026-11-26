@@ -74,7 +74,7 @@ struct ModuleManifest {
 //   schema of its format_version (unknown top-level fields are allowed only with an "x-" prefix),
 //   library.path, a dependency path or tests.vectors is absolute (in POSIX or Windows notation),
 //   a capability is listed twice, a required service's major or minor does not fit in 32 bits or
-//   its name and major are listed twice, or parameters_schema is not a valid draft-07 schema;
+//   its name and major are listed twice, or parameters_schema is not a valid JSON Schema (draft-07 or 2020-12);
 // - IO_ERROR when the file cannot be read.
 // The library itself is not looked at.
 ModuleManifest load_manifest(const std::filesystem::path& file);

@@ -95,7 +95,7 @@ ModuleManifest load_manifest(const std::filesystem::path& file) {
             manifest.name + "@" + to_string(manifest.version) + " parameters_schema");
     } catch (const Error& error) {
         reader.fail(ErrorCode::MANIFEST_INVALID, "/parameters_schema",
-                    std::string("not a valid draft-07 schema: ") + error.what());
+                    std::string("not a valid JSON Schema: ") + error.what());
     }
 
     if (json.contains("features")) {

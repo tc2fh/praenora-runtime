@@ -273,6 +273,21 @@ private:
         results_.pass(id, "the manifest satisfies the schema " + schema->name());
     }
 
+    // Keywords beside a "$ref" in a draft-07 parameters_schema are ignored, and so is a `default`
+    // among them: the parameter would not get it. A note for the pass message of the check.
+    static std::string parameters_schema_warning(const ModuleManifest& manifest) {
+        const auto places = ignored_ref_siblings(manifest.parameters_schema);
+        if (places.empty()) {
+            return "";
+        }
+        std::string text = "; warning: parameters_schema is draft-07, which ignores the keywords "
+                           "beside a $ref (a default there is never applied), at ";
+        for (std::size_t i = 0; i < places.size(); ++i) {
+            text += (i == 0 ? "" : ", ") + places[i];
+        }
+        return text + "; move them next to a plain property or declare 2020-12";
+    }
+
     void check_manifest_semantics() {
         const char* const id = "manifest.semantics";
         if (results_.skip_unless(id, "manifest.schema")) {
@@ -318,7 +333,8 @@ private:
             id, "the manifest is consistent and compatible with this runtime (" + manifest.os +
                     "-" + manifest.arch + ", ABI " + std::to_string(manifest.abi_major) + "." +
                     std::to_string(manifest.abi_minor) + ", PMP " +
-                    to_string(manifest.pmp_version) + "); the catalog defines " + capabilities);
+                    to_string(manifest.pmp_version) + "); the catalog defines " + capabilities +
+                    parameters_schema_warning(manifest));
         manifest_ = std::move(manifest);
     }
 

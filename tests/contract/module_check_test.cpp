@@ -5,6 +5,7 @@
 #include "api/module_check.hpp"
 #include "core/semver.hpp"
 #include "discovery/manifest.hpp"
+#include "document/yaml_loader.hpp"
 #include "document/schema_registry.hpp"
 
 #include "instance_fixtures.hpp"
@@ -773,4 +774,34 @@ TEST(Runtime, ValidateLoadRefusesALibraryWithAnAbandonedCall) {
 
     abandoned.reset();
     EXPECT_TRUE(runtime.validate(file, load).ok());
+}
+
+// A draft-07 parameters_schema with keywords beside a "$ref" passes, with a note: draft-07 ignores
+// them, a default among them. A 2020-12 one needs no note.
+TEST(ModuleCheck, DefaultBesideReferenceInDraft07IsNoted) {
+    const fs::path source = fixture_manifest("fx-echo");
+    for (const bool modern : {false, true}) {
+        SCOPED_TRACE(modern ? "2020-12" : "draft-07");
+        ScratchDir dir;
+        json document = praenora::detail::load_document_file(source).json;
+        const fs::path library = praenora::detail::load_manifest(source).library_path;
+        fs::copy_file(library, dir.path() / library.filename(), fs::copy_options::overwrite_existing);
+        document["library"]["path"] = library.filename().u8string();
+        document["parameters_schema"] =
+            modern ? json::parse(R"({"$schema": "https://json-schema.org/draft/2020-12/schema",
+                                     "type": "object", "$defs": {"n": {"type": "number"}},
+                                     "properties": {"gain": {"$ref": "#/$defs/n", "default": 1}}})")
+                   : json::parse(R"({"type": "object", "definitions": {"n": {"type": "number"}},
+                                     "properties": {"gain": {"$ref": "#/definitions/n", "default": 1}}})");
+        write_text_file(dir.path() / "module.pmm.json", document.dump(2));
+        const Runtime runtime(check_options());
+        const ModuleCheckReport report = runtime.check_module(utf8(dir.path() / "module.pmm.json"));
+        const CheckResult& semantics = check_of(report, "manifest.semantics");
+        EXPECT_EQ(semantics.status, "pass") << shown(report);
+        EXPECT_EQ(contains(semantics.message, "warning: parameters_schema is draft-07"), !modern)
+            << semantics.message;
+        if (!modern) {
+            EXPECT_TRUE(contains(semantics.message, "/properties/gain (default)")) << semantics.message;
+        }
+    }
 }

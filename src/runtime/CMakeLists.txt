@@ -8,13 +8,10 @@ include(GenerateExportHeader)
 # standard library and Praenora types.
 # System libraries come with them: threads for the module workers and, where it is separate, the
 # dynamic loader library.
-# json-schema-validator comes before nlohmann/json, so its include directory comes first too: when
-# the runtime links a validator built in the tree (PRAENORA_FETCH_JSON_SCHEMA_VALIDATOR), it must
-# not compile against an installed nlohmann/json-schema.hpp in nlohmann/json's include directory.
 find_package(Threads REQUIRED)
 add_library(praenora_runtime_deps INTERFACE)
 target_link_libraries(praenora_runtime_deps INTERFACE
-    nlohmann_json_schema_validator::validator
+    jsoncons::jsoncons
     nlohmann_json::nlohmann_json
     yaml-cpp::yaml-cpp
     ${PRAENORA_SPDLOG_TARGET}
@@ -104,6 +101,10 @@ set_target_properties(praenora_runtime_objects PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN ON)
 praenora_target_warnings(praenora_runtime_objects)
+# jsoncons's templates give schema.cpp more sections than a Debug object file of MSVC can hold.
+if(MSVC)
+    set_source_files_properties(document/schema.cpp PROPERTIES COMPILE_OPTIONS /bigobj)
+endif()
 
 # The schemas and the protocol catalog are embedded in the runtime (document/resources.hpp):
 # spec/schemas/*.json under schemas/ and spec/catalog/**/*.json under catalog/. The globs are
@@ -166,9 +167,10 @@ set_target_properties(praenora_runtime PROPERTIES
     VISIBILITY_INLINES_HIDDEN ON)
 # Exports of the shared library: symbols of the praenora namespace only (with the type information
 # and vtables of its classes). The runtime's own code is compiled with hidden visibility anyway;
-# these link options also keep the symbols of statically linked dependencies (such as
-# json-schema-validator, built with default visibility) internal, so they cannot clash with another
-# copy in the host application.
+# these link options also keep the symbols of statically linked dependencies (such as yaml-cpp,
+# built with default visibility) internal, so they cannot clash with another copy in the host
+# application. jsoncons and nlohmann/json are header-only and compiled into the runtime's own
+# objects, so they are hidden by the setting above.
 # - macOS: exported-symbol patterns (verified).
 # - Other ELF platforms: a version script plus --exclude-libs. The functions and variables are
 #   matched by their demangled names; the type information, its names and the vtables by their

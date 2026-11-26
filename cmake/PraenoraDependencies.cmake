@@ -7,12 +7,10 @@
 #   below, and nothing is downloaded.
 # - With PRAENORA_FETCH_DEPENDENCIES=ON, FetchContent first tries the same find_package() call and
 #   downloads only what is missing, at the pinned commits below.
-# - With PRAENORA_FETCH_JSON_SCHEMA_VALIDATOR=ON, json-schema-validator is built in this tree
-#   from its pinned sources, without looking for an installed one, so the flags of the build
-#   (the sanitizers' in particular, which cmake/PraenoraSanitizers.cmake has already added) reach
-#   it. FetchContent downloads the sources unless the cache variable
-#   FETCHCONTENT_SOURCE_DIR_NLOHMANN_JSON_SCHEMA_VALIDATOR names a local copy. The other
-#   dependencies come as they would without the option.
+# - jsoncons (the JSON Schema validator) is header-only, so it is compiled with the flags of the
+#   build, the sanitizers' in particular. Fetched, it is not built as a project: only its sources
+#   are downloaded and a target for its include directory is defined here, because its own
+#   CMakeLists.txt has install rules that cannot be switched off (ADR-0017).
 # - GoogleTest is needed only when PRAENORA_BUILD_TESTS is ON.
 # - When the cache variable PRAENORA_RUNTIME_DEPS is defined, as the ci-* presets of
 #   CMakePresets.json define it, from the environment variable of that name, it must be the
@@ -22,7 +20,7 @@
 #   tree that does not define it is not checked.
 #
 # Afterwards these targets exist: nlohmann_json::nlohmann_json,
-# nlohmann_json_schema_validator::validator (IMPORTED when it is an installed library),
+# jsoncons::jsoncons (IMPORTED when it is an installed package),
 # yaml-cpp::yaml-cpp, the spdlog target named by PRAENORA_SPDLOG_TARGET and, with tests,
 # GTest::gtest and GTest::gtest_main. One status line per dependency reports its version and where
 # it came from. PRAENORA_FETCHED_DEPENDENCIES lists, by their FetchContent names, the dependencies
@@ -38,7 +36,7 @@ include_guard(GLOBAL)
 # accepted too, because it exports only the unnamespaced yaml-cpp target, which the shim below
 # turns into yaml-cpp::yaml-cpp.
 set(PRAENORA_NLOHMANN_JSON_MIN_VERSION 3.11)
-set(PRAENORA_JSON_SCHEMA_VALIDATOR_MIN_VERSION 2.3)
+set(PRAENORA_JSONCONS_MIN_VERSION 1.10.0)
 set(PRAENORA_YAML_CPP_MIN_VERSION 0.7)
 set(PRAENORA_SPDLOG_MIN_VERSION 1.10)
 set(PRAENORA_GTEST_MIN_VERSION 1.11)
@@ -117,16 +115,10 @@ macro(praenora_find_dependencies)
         endif()
     endif()
 
-    # Without PRAENORA_FETCH_DEPENDENCIES every dependency comes from find_package(), except
-    # json-schema-validator with PRAENORA_FETCH_JSON_SCHEMA_VALIDATOR, which is built below.
-    # nlohmann/json is found first, so the validator's own project finds the same package instead
-    # of downloading one.
+    # Without PRAENORA_FETCH_DEPENDENCIES every dependency comes from find_package().
     if(NOT PRAENORA_FETCH_DEPENDENCIES)
         find_package(nlohmann_json ${PRAENORA_NLOHMANN_JSON_MIN_VERSION} CONFIG REQUIRED)
-        if(NOT PRAENORA_FETCH_JSON_SCHEMA_VALIDATOR)
-            find_package(nlohmann_json_schema_validator
-                ${PRAENORA_JSON_SCHEMA_VALIDATOR_MIN_VERSION} CONFIG REQUIRED)
-        endif()
+        find_package(jsoncons ${PRAENORA_JSONCONS_MIN_VERSION} EXACT CONFIG REQUIRED)
         find_package(yaml-cpp ${PRAENORA_YAML_CPP_MIN_VERSION} CONFIG REQUIRED)
         find_package(spdlog ${PRAENORA_SPDLOG_MIN_VERSION} CONFIG REQUIRED)
         if(PRAENORA_BUILD_TESTS)
@@ -135,9 +127,9 @@ macro(praenora_find_dependencies)
         set(_praenora_gtest_package GTest)
     endif()
 
-    # The FetchContent names made available below (none without the two options).
+    # The FetchContent names made available below (none without the option).
     set(_praenora_fetched "")
-    if(PRAENORA_FETCH_DEPENDENCIES OR PRAENORA_FETCH_JSON_SCHEMA_VALIDATOR)
+    if(PRAENORA_FETCH_DEPENDENCIES)
         include(FetchContent)
 
         # Static dependencies are linked into the shared runtime, so fetched sub-projects build
@@ -155,11 +147,9 @@ macro(praenora_find_dependencies)
         # No install rules of the fetched projects: they are header-only or static libraries,
         # used privately by the shared runtime, so neither cmake --install nor a wheel may pick
         # up their headers, libraries or CMake files. The option names are the upstream projects'
-        # own (nlohmann/json, json-schema-validator, yaml-cpp, spdlog); json-schema-validator's
-        # were checked against its 2.4.1 sources, the others could not be checked without
-        # downloading the projects.
+        # own (nlohmann/json, yaml-cpp, spdlog); they could not be checked without downloading
+        # the projects. jsoncons is not built as a project (see its declaration below).
         set(JSON_Install OFF)
-        set(JSON_VALIDATOR_INSTALL OFF)
         set(YAML_CPP_INSTALL OFF)
         set(SPDLOG_INSTALL OFF)
 
@@ -169,25 +159,17 @@ macro(praenora_find_dependencies)
             set(_praenora_fetch_system SYSTEM)
         endif()
 
-        # json-schema-validator is looked for with find_package() first, as the others are, unless
-        # PRAENORA_FETCH_JSON_SCHEMA_VALIDATOR asks for it to be built here whatever is installed.
-        # That holds with FetchContent's default FETCHCONTENT_TRY_FIND_PACKAGE_MODE (OPT_IN): a
-        # user's ALWAYS makes FetchContent look for an installed validator all the same, unless
-        # FETCHCONTENT_SOURCE_DIR_NLOHMANN_JSON_SCHEMA_VALIDATOR names a local copy (the status
-        # line then says "found at"), and NEVER makes the validator's own project fetch
-        # nlohmann/json too.
-        set(_praenora_validator_find
-            FIND_PACKAGE_ARGS ${PRAENORA_JSON_SCHEMA_VALIDATOR_MIN_VERSION} CONFIG)
-        if(PRAENORA_FETCH_JSON_SCHEMA_VALIDATOR)
-            set(_praenora_validator_find "")
-        endif()
-        FetchContent_Declare(nlohmann_json_schema_validator
-            GIT_REPOSITORY https://github.com/pboettch/json-schema-validator.git
-            GIT_TAG 9abddfa905bb4889cc4ae55f87adcaa71dd3bc23 # 2.4.1
+        # jsoncons is header-only. SOURCE_SUBDIR names a directory without a CMakeLists.txt, so
+        # FetchContent_MakeAvailable() downloads the sources and does not add jsoncons' project,
+        # whose install rules (the headers and a CMake package) cannot be switched off and which
+        # builds its tests unless JSONCONS_BUILD_TESTS is OFF: neither cmake --install nor a wheel
+        # may carry the headers (ADR-0017). The target is defined after the download.
+        FetchContent_Declare(jsoncons
+            GIT_REPOSITORY https://github.com/danielaparker/jsoncons.git
+            GIT_TAG 9e57e421285422d7aeeb5aa7dc839f6a19121ee6 # v1.10.0
+            SOURCE_SUBDIR include
             ${_praenora_fetch_system}
-            ${_praenora_validator_find})
-        unset(_praenora_validator_find)
-        set(_praenora_fetched nlohmann_json_schema_validator)
+            FIND_PACKAGE_ARGS ${PRAENORA_JSONCONS_MIN_VERSION} EXACT CONFIG)
         if(PRAENORA_FETCH_DEPENDENCIES)
             FetchContent_Declare(nlohmann_json
                 GIT_REPOSITORY https://github.com/nlohmann/json.git
@@ -212,7 +194,7 @@ macro(praenora_find_dependencies)
                 ${_praenora_fetch_system}
                 FIND_PACKAGE_ARGS ${PRAENORA_GTEST_MIN_VERSION} CONFIG NAMES GTest)
 
-            set(_praenora_fetched nlohmann_json nlohmann_json_schema_validator yaml-cpp spdlog)
+            set(_praenora_fetched nlohmann_json jsoncons yaml-cpp spdlog)
             if(PRAENORA_BUILD_TESTS)
                 list(APPEND _praenora_fetched googletest)
             endif()
@@ -221,13 +203,11 @@ macro(praenora_find_dependencies)
         # The fetched libraries are static, whatever a super-build's BUILD_SHARED_LIBS says: a
         # fetched shared library would be neither installed (the rules above are off) nor found
         # by an installed runtime. Each project's own shared-library option is set OFF (the names
-        # are the upstream projects'; only json-schema-validator's was checked, against its 2.4.1
-        # sources, the others could not be checked without downloading them), and
+        # are the upstream projects'; they could not be checked without downloading them), and
         # BUILD_SHARED_LIBS too, which some of them also follow, as a normal variable for these
         # projects only: it is unset right after them. This project never reads it.
         set(YAML_BUILD_SHARED_LIBS OFF)
         set(SPDLOG_BUILD_SHARED OFF)
-        set(JSON_VALIDATOR_SHARED_LIBS OFF)
         set(BUILD_SHARED_LIBS OFF)
         FetchContent_MakeAvailable(${_praenora_fetched})
         unset(BUILD_SHARED_LIBS)
@@ -254,13 +234,15 @@ macro(praenora_find_dependencies)
                 "minimum 0.8; it is used through the yaml-cpp target shim")
         endif()
     endif()
-    if(NOT TARGET nlohmann_json_schema_validator::validator)
-        if(NOT TARGET nlohmann_json_schema_validator)
-            message(FATAL_ERROR "json-schema-validator provides neither the "
-                "nlohmann_json_schema_validator::validator nor the "
-                "nlohmann_json_schema_validator target.")
+    # jsoncons fetched without find_package(): an interface target for its include directory.
+    if(NOT TARGET jsoncons::jsoncons)
+        if(NOT DEFINED jsoncons_SOURCE_DIR)
+            message(FATAL_ERROR "jsoncons provides no jsoncons::jsoncons target and was not "
+                "fetched.")
         endif()
-        add_library(nlohmann_json_schema_validator::validator ALIAS nlohmann_json_schema_validator)
+        add_library(jsoncons INTERFACE)
+        target_include_directories(jsoncons SYSTEM INTERFACE "${jsoncons_SOURCE_DIR}/include")
+        add_library(jsoncons::jsoncons ALIAS jsoncons)
     endif()
     # spdlog: the compiled library when available, otherwise the header-only target.
     if(TARGET spdlog::spdlog)
@@ -275,16 +257,14 @@ macro(praenora_find_dependencies)
     # The dependencies built in this tree, whose license files the installation holds.
     set(PRAENORA_FETCHED_DEPENDENCIES "")
     _praenora_record_fetched(nlohmann_json nlohmann_json::nlohmann_json)
-    _praenora_record_fetched(nlohmann_json_schema_validator
-        nlohmann_json_schema_validator::validator)
+    _praenora_record_fetched(jsoncons jsoncons::jsoncons)
     _praenora_record_fetched(yaml-cpp yaml-cpp::yaml-cpp)
     _praenora_record_fetched(spdlog ${PRAENORA_SPDLOG_TARGET})
     unset(_praenora_fetched)
 
     _praenora_report_dependency(nlohmann_json nlohmann_json nlohmann_json 3.12.0
         nlohmann_json::nlohmann_json)
-    _praenora_report_dependency(nlohmann_json_schema_validator nlohmann_json_schema_validator
-        nlohmann_json_schema_validator 2.4.1 nlohmann_json_schema_validator::validator)
+    _praenora_report_dependency(jsoncons jsoncons jsoncons 1.10.0 jsoncons::jsoncons)
     _praenora_report_dependency(yaml-cpp yaml-cpp yaml-cpp 0.9.0 yaml-cpp::yaml-cpp)
     _praenora_report_dependency(spdlog spdlog spdlog 1.17.0 ${PRAENORA_SPDLOG_TARGET}
         "; target ${PRAENORA_SPDLOG_TARGET}")

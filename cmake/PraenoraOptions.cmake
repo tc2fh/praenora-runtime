@@ -14,13 +14,6 @@ option(PRAENORA_BUILD_CLI "Build the praenora command-line tool" ON)
 option(PRAENORA_BUILD_PYTHON "Build the Python bindings (SWIG >= 4.0, Python >= 3.10)" OFF)
 option(PRAENORA_FETCH_DEPENDENCIES
     "Download missing dependencies at pinned versions (installed packages are used first)" OFF)
-# json-schema-validator built in this tree from its pinned sources even when one is installed; the
-# sources are downloaded unless FETCHCONTENT_SOURCE_DIR_NLOHMANN_JSON_SCHEMA_VALIDATOR names a
-# local copy. It is meant for sanitizer builds: the library then gets their flags, while an
-# installed one is usually built without them (cmake/PraenoraDependencies.cmake,
-# docs/platforms.md).
-option(PRAENORA_FETCH_JSON_SCHEMA_VALIDATOR
-    "Build json-schema-validator from its pinned sources, even when one is installed" OFF)
 option(PRAENORA_INSTALL "Generate install rules" ${PRAENORA_TOP_LEVEL})
 option(PRAENORA_INSTALL_EXAMPLES "Install the example modules" OFF)
 # Directories of third-party license files, such as the licenses/ directory of a dependency bundle
