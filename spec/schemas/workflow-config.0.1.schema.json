@@ -76,8 +76,19 @@
         "^(?!(inputs|outputs)$)[a-z][a-z0-9_]*$": {
           "type": "object",
           "required": [
-            "source",
-            "path"
+            "source"
+          ],
+          "anyOf": [
+            {
+              "required": [
+                "path"
+              ]
+            },
+            {
+              "required": [
+                "descriptor"
+              ]
+            }
           ],
           "additionalProperties": false,
           "properties": {
@@ -90,6 +101,11 @@
             "path": {
               "type": "string",
               "minLength": 1
+            },
+            "descriptor": {
+              "type": "string",
+              "minLength": 1,
+              "description": "An ode-uq-spec target descriptor of an observation-csv input; it names the CSV (data.href) and gives its dialect, column mapping and variables."
             },
             "columns": {
               "type": "object",

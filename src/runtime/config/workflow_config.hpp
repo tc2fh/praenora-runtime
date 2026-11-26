@@ -44,10 +44,15 @@ struct TimeBase {
 const std::vector<std::string>& observation_columns();
 
 // A workflow input bound to a data source ("observation-csv" or "json-document"). `columns` maps
-// observation column names to the CSV's header names (observation-csv only).
+// observation column names to the CSV's header names (observation-csv only). `descriptor` is the
+// ode-uq-spec target descriptor of an observation-csv input (absolute; empty when there is none):
+// it gives the dialect, the column mapping and the variables, and names the CSV, so `path` may
+// then be empty (validation fills it in from the descriptor's data.href when it builds the
+// source), and `columns` is empty.
 struct InputBinding {
     std::string input, source;
-    std::filesystem::path path; // absolute
+    std::filesystem::path path;       // absolute
+    std::filesystem::path descriptor; // absolute, or empty
     std::map<std::string, std::string> columns;
 };
 
@@ -129,8 +134,9 @@ struct WorkflowConfig {
 //      beyond 64 bits, empty paths, `columns` keys that are not observation columns (or appear on
 //      a json-document input), two observation columns that would read one header (a column
 //      that is not remapped reads the header of its own name; the refused remapping is left
-//      out), and run.ticks, which is required when no input is an observation-csv replay (an
-//      override of ticks counts).
+//      out), a `descriptor` on a json-document input or together with `columns`, and run.ticks,
+//      which is required when no input is an observation-csv replay (an override of ticks
+//      counts).
 // Diagnostics are located in the file (file, line, column, JSON pointer). Returns nullopt when
 // step 1 or 2 failed, since nothing else can be trusted then; otherwise the configuration, even
 // if step 3 reported errors.

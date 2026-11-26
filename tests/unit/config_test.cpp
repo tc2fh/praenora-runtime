@@ -574,3 +574,51 @@ TEST(Config, UnusableDocumentGivesNoConfiguration) {
     ASSERT_EQ(missing.diagnostics.size(), 1u);
     EXPECT_EQ(missing.diagnostics[0].code, ErrorCode::IO_ERROR);
 }
+
+TEST(Config, AnInputMayNameADescriptorInsteadOfAPath) {
+    ScratchDir scratch;
+    ValidationReport report;
+    const WorkflowConfig config = load_text(scratch.path(),
+                                            "kind: workflow-config\n"
+                                            "format_version: \"0.1.0\"\n"
+                                            "workflow: { name: test.single, version: \"0.1.0\" }\n"
+                                            "inputs:\n"
+                                            "  source: { source: observation-csv, "
+                                            "descriptor: meta/target.json }\n"
+                                            "steps:\n"
+                                            "  a: { module: { name: fx-echo, version: \"0.1.0\" } }\n",
+                                            report);
+    ASSERT_TRUE(report.ok()) << report.to_text();
+    const auto& input = config.inputs.at("source");
+    // The descriptor resolves against the configuration's directory; the CSV is found later, from
+    // the descriptor's data.href.
+    EXPECT_EQ(input.descriptor, scratch.path() / "meta" / "target.json");
+    EXPECT_TRUE(input.path.empty());
+    EXPECT_TRUE(input.columns.empty());
+}
+
+TEST(Config, AnInputMayNameBothAPathAndADescriptor) {
+    ScratchDir scratch;
+    ValidationReport report;
+    const WorkflowConfig config = load_text(scratch.path(),
+                                            "kind: workflow-config\n"
+                                            "format_version: \"0.1.0\"\n"
+                                            "workflow: { name: test.single, version: \"0.1.0\" }\n"
+                                            "inputs:\n"
+                                            "  source: { source: observation-csv, path: data.csv, "
+                                            "descriptor: target.json }\n"
+                                            "steps:\n"
+                                            "  a: { module: { name: fx-echo, version: \"0.1.0\" } }\n",
+                                            report);
+    ASSERT_TRUE(report.ok()) << report.to_text();
+    EXPECT_EQ(config.inputs.at("source").path, scratch.path() / "data.csv");
+    EXPECT_EQ(config.inputs.at("source").descriptor, scratch.path() / "target.json");
+}
+
+TEST(Config, AnInputWithoutADescriptorHasNone) {
+    ScratchDir scratch;
+    ValidationReport report;
+    const WorkflowConfig config = load_text(scratch.path(), kMinimal, report);
+    ASSERT_TRUE(report.ok()) << report.to_text();
+    EXPECT_TRUE(config.inputs.at("source").descriptor.empty());
+}

@@ -1,0 +1,11 @@
+kind: workflow-config
+format_version: "0.1.0"
+workflow: { name: test.single, version: "0.1.0" }
+run: { ticks: 1 }
+inputs:
+  source:
+    source: json-document
+    path: doc.json
+    descriptor: target.json
+steps:
+  a: { module: { name: fx-echo, version: "0.1.0" } }

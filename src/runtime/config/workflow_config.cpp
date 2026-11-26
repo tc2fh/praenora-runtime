@@ -186,13 +186,36 @@ private:
             InputBinding binding;
             binding.input = name;
             binding.source = entry.at("source").get<std::string>();
-            if (auto path = path_at(entry.at("path"), pointer + "/path")) {
-                binding.path = std::move(*path);
+            if (const json* path = find_value(&entry, "path")) {
+                if (auto resolved = path_at(*path, pointer + "/path")) {
+                    binding.path = std::move(*resolved);
+                }
             }
-            if (const json* columns = find_value(&entry, "columns")) {
+            if (const json* descriptor = find_value(&entry, "descriptor")) {
+                if (auto resolved = path_at(*descriptor, pointer + "/descriptor")) {
+                    binding.descriptor = std::move(*resolved);
+                }
+            }
+            check_data_location(entry, pointer, binding);
+            if (const json* columns = find_value(&entry, "columns");
+                columns != nullptr && !entry.contains("descriptor")) {
                 read_columns(*columns, pointer + "/columns", binding);
             }
             config.inputs.emplace(name, std::move(binding));
+        }
+    }
+
+    // A descriptor (the schema lets an input have a path, a descriptor or both) describes an
+    // observation CSV and takes over the column mapping, so `columns` is refused beside it.
+    void check_data_location(const json& entry, const std::string& pointer,
+                             const InputBinding& binding) {
+        const bool has_descriptor = entry.contains("descriptor");
+        if (has_descriptor && binding.source != "observation-csv") {
+            error(ErrorCode::CONFIG_INVALID, pointer + "/descriptor",
+                  "a descriptor describes an observation CSV, not a " + binding.source + " input");
+        } else if (has_descriptor && entry.contains("columns")) {
+            error(ErrorCode::CONFIG_INVALID, pointer + "/columns",
+                  "columns cannot be given beside a descriptor, whose columns are used");
         }
     }
 

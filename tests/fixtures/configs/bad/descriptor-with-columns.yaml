@@ -1,0 +1,11 @@
+kind: workflow-config
+format_version: "0.1.0"
+workflow: { name: test.single, version: "0.1.0" }
+run: { ticks: 1 }
+inputs:
+  source:
+    source: observation-csv
+    descriptor: target.json
+    columns: { value: val }
+steps:
+  a: { module: { name: fx-echo, version: "0.1.0" } }
