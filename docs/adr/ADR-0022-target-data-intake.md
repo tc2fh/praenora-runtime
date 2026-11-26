@@ -4,6 +4,7 @@
 - Date: 2026-11-10
 - Supersedes: none
 - Superseded by: none
+- Amended by: [ADR-0042](ADR-0042-target-descriptor-intake.md) (the `ode-uq-spec` target descriptor is read, as an option)
 
 ## Context
 
@@ -14,7 +15,7 @@ Target data must enter the workflow deterministically and reproducibly. Reading 
 The runtime owns input sources, bound in the configuration `inputs` section.
 - **`observation-csv`:** UTF-8 CSV per RFC 4180 with a header row; column names as in `ode-uq-spec` (required `series_id`, `variable_id`, `time`, `value`), with optional header remapping. `missing=true` or an empty value becomes `value: null`. A row that breaks field rules is `TARGET_DATA_INVALID` naming file and line. Rows are stably sorted by (`time`, `series_id`, `variable_id`, `observation_id`, original row index). Each tick's batch holds rows whose `time` falls in that tick's window; an empty batch is still a batch. The source is exhausted once the window start passes the last row's time. Numbers are parsed independent of the global locale. The file's SHA-256 is part of the fingerprint.
 - **`json-document`:** delivers the same payload every tick for static inputs; it is validated against the port's message type and its digest is part of the fingerprint.
-- Units are labels only (OQ-18). Replay only: no real-time pacing and no streaming (OQ-8). The `ode-uq-spec` target descriptor is not read in the MVP (OQ-15).
+- Units are labels only (OQ-18). Replay only: no real-time pacing and no streaming (OQ-8). An `observation-csv` input may name an `ode-uq-spec` target descriptor, which gives its dialect, column mapping, variables, roles and duplicate policy ([ADR-0042](ADR-0042-target-descriptor-intake.md)); without one the input is read as described here (OQ-15).
 - A run with an output directory writes `run-record.json`, `outputs/<port>.jsonl`, and optional trace, status and log files, all UTF-8 with `\n` endings, in binary mode; outputs and trace are byte-deterministic.
 
 ### Builder notes (Proposed)
@@ -38,7 +39,7 @@ The runtime owns input sources, bound in the configuration `inputs` section.
 - **Modules read their own data.** Hides inputs from the fingerprint and from validation.
 - **Streaming or live sources.** Needs pacing and ordering semantics (OQ-8).
 - **Unit-aware conversion in the runtime.** Large scope (OQ-18).
-- **Reading only `ode-uq-spec` target descriptors.** Defers the simple CSV case the examples need.
+- **Reading only `ode-uq-spec` target descriptors.** Defers the simple CSV case the examples need. ([ADR-0042](ADR-0042-target-descriptor-intake.md) reads the descriptor as an addition, which keeps the simple case.)
 
 ## Consequences
 

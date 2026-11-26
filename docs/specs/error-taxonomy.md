@@ -104,7 +104,7 @@ as `a/b` names both parties that commonly own the fix; `none` marks codes that r
 | 704 | `INPUT_MISSING` | execution | 1 | runtime | no | A required input message was not available when a step ran. |
 | 705 | `RUN_STOPPED` | cancelled | 130 | none | no | The run was stopped on request. |
 | 706 | `MODULE_CRASHED` | execution | 1 | module | no | A module host ended (a signal or an exit) or broke its channel's protocol during a load or a call into its module. |
-| 800 | `TARGET_DATA_INVALID` | data | 1 | user data | no | Target data is malformed or breaks the observation rules; with severity warning, a finding about data that is still accepted (rows before `run.time.start`, never delivered). |
+| 800 | `TARGET_DATA_INVALID` | data | 1 | user data | no | Target data is malformed or breaks the observation rules; with severity warning, a finding about data that is still accepted (rows before `run.time.start`, never delivered; with a target descriptor also rows of variables with another role than response, values outside their variable's bounds, columns the descriptor does not list, and a descriptor without `time_unit`). |
 | 801 | `TARGET_DATA_UNAVAILABLE` | data | 1 | environment | yes | Target data could not be read, for example because its file does not exist. |
 
 Notes on the table:
@@ -122,8 +122,8 @@ Notes on the table:
   ([ADR-0031](../adr/ADR-0031-raise-the-reserved-error-codes.md)).
 - `TARGET_DATA_UNAVAILABLE` is raised by validation for a data file that cannot be read: one that
   does not exist, is not a file or whose status cannot be read (a directory on its path cannot be
-  searched, for example), located at `/inputs/<name>/path` of the configuration, and one that
-  cannot be opened or read, located at the file. What an observation CSV holds, and its size, are
+  searched, for example), located at `/inputs/<name>/path` of the configuration (or `/inputs/<name>/descriptor` for a
+  target descriptor), and one that cannot be opened or read, located at the file. What an observation CSV holds, and its size, are
   `TARGET_DATA_INVALID`; a `json-document` that is not JSON or YAML, or is beyond 16 MiB, is
   `PARSE_ERROR`, and one that violates its message type is `INPUT_BINDING_INVALID`. Input data is
   read only during validation, never during a run.
@@ -223,16 +223,16 @@ error.
 | If you see | Look at |
 |---|---|
 | `PARSE_ERROR` | The file, line and column in the message: YAML or JSON syntax, a duplicate key, a merge key or tag, `.inf` or `.nan`, a `.json` file that is not strict JSON, or a document beyond 16 MiB or nested deeper than 128. |
-| `SCHEMA_VIOLATION` | The JSON pointer: usually a misspelled property ("property 'x' is not allowed") or a value of the wrong type. For a catalog entry, the entry's file. |
+| `SCHEMA_VIOLATION` | The JSON pointer: usually a misspelled property ("property 'x' is not allowed") or a value of the wrong type. For a target descriptor, the pointer into the descriptor. For a catalog entry, the entry's file. |
 | `FORMAT_VERSION_UNSUPPORTED` | The document's `format_version`; the message lists what this runtime reads (`praenora schema list`). |
 | `DOCUMENT_KIND_MISMATCH` | The document's `kind`: the wrong file was given. |
 | `CONFIG_INVALID` | Values of the configuration that the schema cannot check: durations, paths, `columns`, `outputs.record`, a missing `run.ticks` when no input replays data, a log file inside the output directory's managed files, `share_compiled_models` or `sandbox: restricted` on a step that runs in the runtime's process ([process-isolation.md](process-isolation.md#configuration)); or an invalid `PRAENORA_LOG_LEVEL` or `PRAENORA_LOG_FORMAT`. |
 | `WORKFLOW_NOT_FOUND` | `workflow.name` and `workflow.version` against `praenora catalog list --kind workflows`, and any extra catalog paths. |
 | `BINDING_INVALID` | The configuration's `steps` against the definition's steps (`praenora graph --workflow <name>@<version>`). |
 | `PARAMETERS_INVALID` | The pointer `/steps/<step>/parameters/...` against the module's `parameters_schema` (`praenora modules inspect <name>@<version>`). |
-| `INPUT_BINDING_INVALID` | The configuration's `inputs`: every workflow input bound, a message type that cannot carry the source's data, a `json-document` that violates the input's message type. |
-| `TARGET_DATA_INVALID` | The data file and line in the message: CSV structure, a missing column, numbers, the `missing` and `censoring` rules ([protocol.md](protocol.md#message-types)), or a CSV file beyond 256 MiB. |
-| `TARGET_DATA_UNAVAILABLE` | The input's `path` in the configuration (relative to the configuration file's directory) and the file it names: it must exist, be a file and be readable by the process, and every directory on the path must be searchable. |
+| `INPUT_BINDING_INVALID` | The configuration's `inputs`: every workflow input bound, a message type that cannot carry the source's data, a `json-document` that violates the input's message type. With a descriptor: a remote `data.href` without `path`, a `path` and an `href` that name two files, a `time_unit` other than the run's. |
+| `TARGET_DATA_INVALID` | The data file and line in the message: CSV structure, a missing column, numbers, the `missing` and `censoring` rules ([protocol.md](protocol.md#message-types)), or a CSV file beyond 256 MiB. With a target descriptor ([ADR-0042](../adr/ADR-0042-target-descriptor-intake.md)): a row whose variable or unit the descriptor does not list, a duplicate under its `duplicate_policy`, a `data.sha256` that is not the CSV's digest, duplicate variable ids and an inverted bound (located in the descriptor). |
+| `TARGET_DATA_UNAVAILABLE` | The input's `path` in the configuration (or `descriptor`) (relative to the configuration file's directory) and the file it names: it must exist, be a file and be readable by the process, and every directory on the path must be searchable. |
 | `MODULE_NOT_FOUND` | The searched paths and the other versions found, both listed in the message; `--module-path`, `modules.search_paths`, `PRAENORA_MODULE_PATH`; `praenora modules list`. |
 | `PLATFORM_MISMATCH` | The platforms named in the message: the module is not built or installed for this platform. |
 | `MANIFEST_INVALID` | The manifest file and pointer ([manifest.md](manifest.md)); `praenora modules check <manifest>`. Regenerate the manifest with `praenora_add_module()`. |

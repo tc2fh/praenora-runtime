@@ -66,4 +66,5 @@ Some ADRs have a split status, for example "Accepted (shape) / Proposed (details
 | [ADR-0039](ADR-0039-restricted-sandbox-profile-for-module-hosts.md) | A restricted sandbox profile for module hosts | Proposed | 2026-11-20 |
 | [ADR-0040](ADR-0040-mit-license.md) | MIT license | Accepted | 2026-11-21 |
 | [ADR-0041](ADR-0041-ci-and-releases-against-pinned-dependency-bundles.md) | CI and releases against pinned dependency bundles | Proposed | 2026-11-21 |
+| [ADR-0042](ADR-0042-target-descriptor-intake.md) | Target descriptor intake | Proposed | 2026-11-25 |
 | [ADR-0043](ADR-0043-json-schema-dialects-and-validator.md) | JSON Schema dialects (draft-07 and 2020-12) and the schema validator | Proposed | 2026-11-24 |

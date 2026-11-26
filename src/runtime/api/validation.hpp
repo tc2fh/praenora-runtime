@@ -103,7 +103,8 @@ struct ValidatedWorkflow {
     nlohmann::json isolation;
     // The run record's execution.inputs, outside the hashed section as well: the counts that the
     // replay sources found in their data, {<input>: {"rows_total", "rows_before_start"}}, for each
-    // input whose source has rows (an observation-csv); none for a json-document.
+    // input whose source has rows (an observation-csv); none for a json-document. An input with a
+    // target descriptor also has "rows_not_delivered_by_role" and "descriptor_id".
     nlohmann::json input_counts;
     // The module search paths that resolved the steps' modules, in search order, with their
     // origins and indexes: those of the context's index (RuntimeContext::modules), or the list

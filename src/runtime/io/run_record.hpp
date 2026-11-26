@@ -50,7 +50,8 @@ void prepare_output_dir(const std::filesystem::path& dir, bool overwrite);
 //                  error record), "platform": {"os", "arch", "compiler", "build_type"},
 //                  "overrides": {"seed"?, "ticks"?, "isolation"?}, "validation": "strict"|"off",
 //                  "manifests": {"steps", "services"} (where each manifest was found),
-//                  "inputs": {<input>: {"rows_total", "rows_before_start"}} (what each replay
+//                  "inputs": {<input>: {"rows_total", "rows_before_start", and with a
+//                  descriptor "rows_not_delivered_by_role", "descriptor_id"}} (what each replay
 //                  source found in its data),
 //                  "isolation": {<step>: {"mode", "share_compiled_models"}} (how each step's
 //                  instance was isolated), and

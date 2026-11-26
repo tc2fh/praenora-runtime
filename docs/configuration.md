@@ -130,7 +130,8 @@ bound, or a binding for an input the definition does not declare, is `INPUT_BIND
 | Key | Type | Content |
 |---|---|---|
 | `source` | `observation-csv` or `json-document` | The kind of data source. |
-| `path` | path | The data file, relative to the configuration file's directory. |
+| `path` | path | The data file, relative to the configuration file's directory. Required, unless an `observation-csv` input has a `descriptor`. |
+| `descriptor` | path | `observation-csv` only: an `ode-uq-spec` target descriptor, relative to the configuration file's directory ([below](#target-descriptor)). |
 | `columns` | map of strings | `observation-csv` only: observation column name to the CSV header it is read from, for example `{ time: t, value: y }`. |
 
 The input's message type, from the definition, decides what the data must hold; for the example's
@@ -176,9 +177,56 @@ observation column is `CONFIG_INVALID`. No two columns may be read from one head
 columns that are not remapped, which read the header of their own name:
 `{ time: value, value: value }` and `{ value: time }` are each one `CONFIG_INVALID`, at the entry
 that causes the clash (of two entries that name one header, the one whose column name sorts later).
-An input whose `path` or `columns` has an error is not read. The example's data file,
+An input whose `path`, `descriptor` or `columns` has an error is not read. The example's data file,
 [`data/observations.csv`](../examples/workflows/estimate-predict/data/observations.csv), uses the
 columns directly.
+
+#### Target descriptor
+
+An `observation-csv` input may name an `ode-uq-spec` target descriptor with `descriptor`
+([ADR-0042](adr/ADR-0042-target-descriptor-intake.md)). It is optional: an input without one is read
+as described above and its fingerprint does not change. The descriptor (JSON, whatever the file is called: YAML is `UNSUPPORTED`; schema version
+`0.0.0`, validated against `target.schema.json` as `ode-uq-spec` publishes it) gives the CSV's
+dialect, the mapping of its columns, and its variables:
+
+```yaml
+inputs:
+  observations:
+    source: observation-csv
+    descriptor: meta/target.json   # data.href names the CSV; no path needed
+```
+
+- **The data file** is `data.href`, relative to the descriptor's directory (an absolute href as
+  written). A remote href (`https:`, `s3:`, `doi:`, `file:`) cannot be read: the input then needs
+  `path`, which wins. With both, `path` and a local `href` must name one file
+  (`INPUT_BINDING_INVALID`). `data.sha256`, when present, must be the file's digest
+  (`TARGET_DATA_INVALID`, located at `/data/sha256` of the descriptor).
+- **`columns`** of the configuration is refused beside a descriptor (`CONFIG_INVALID`); the
+  descriptor's `columns` is the whole mapping. A header named like an optional observation column
+  that the descriptor does not list is not read, and one warning names such headers.
+- **`dialect`**: `delimiter` and `quotechar` are one ASCII character each (not a line break, not the
+  same, else `SCHEMA_VIOLATION`; a character beyond ASCII is `UNSUPPORTED`); a cell equal to `missing_token` is absent in the `value`, `unit`, `missing`, `censoring`, `lower_limit`, `upper_limit` and `weight` columns (never in an identifier or the time).
+- **Variables.** Every row's `variable_id` must be one of the descriptor's `variables`, and a unit
+  cell must equal the variable's unit (`TARGET_DATA_INVALID` at the CSV line). `time_unit` must equal
+  `run.time.unit` (`INPUT_BINDING_INVALID`); without one the run's unit is used and a warning says
+  so. A value outside a variable's `lower_bound` or `upper_bound` is kept and warned about once.
+  Duplicate variable ids and a `lower_bound` above the `upper_bound` are refused
+  (`TARGET_DATA_INVALID`, located in the descriptor).
+- **`duplicate_policy`**: absent, no check; `error`, two rows with one series, variable and time are
+  refused; `require_observation_id`, such rows need distinct, non-empty observation ids;
+  `aggregate_mean` and `aggregate_median` are `UNSUPPORTED`.
+- **Roles.** Only rows of `response` variables (or variables without a role) reach the model. Rows
+  of `covariate`, `input` and `validation` variables are counted and warned about once, and never
+  delivered; a covariate reaches a module through a `json-document` input. The `x-` keys of the
+  descriptor (outcome lists, for example) are not read.
+- **Warnings** are `TARGET_DATA_INVALID` with severity warning, one per kind with the count and the
+  first case; the configuration stays valid. The run record's `execution.inputs.<input>` holds
+  `rows_total`, `rows_before_start` (of the rows delivered by role), `rows_not_delivered_by_role`
+  and `descriptor_id`.
+- **Fingerprint.** The descriptor adds `descriptor: {digest, schema_version}` to the input's entry.
+  The digest covers what decides what the runtime does with the data (columns, dialect, time unit,
+  duplicate policy, the variables' ids, units, roles and bounds), not prose, paths or `x-` keys:
+  rewording a description or moving the CSV does not change the fingerprint.
 
 #### `json-document`
 
