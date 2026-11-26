@@ -1,0 +1,9 @@
+{
+  "schema_version": "0.0.0",
+  "id": "cli-bad-sha",
+  "name": "CLI test data with a wrong digest",
+  "data": { "id": "obs", "href": "../data/obs.csv", "sha256": "0000000000000000000000000000000000000000000000000000000000000000" },
+  "columns": { "series_id": "series_id", "variable_id": "variable_id", "time": "time", "value": "value" },
+  "time_unit": "d",
+  "variables": [ { "id": "x", "name": "X", "unit": "mmol", "value_type": "scalar" } ]
+}

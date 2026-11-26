@@ -660,3 +660,107 @@ TEST(Example, RequestStopEndsRunAsStopped) {
     EXPECT_EQ(stopped.error->code, ErrorCode::RUN_STOPPED);
     EXPECT_EQ(step_status(between->status(), "b").invocations, 1u);
 }
+
+namespace {
+
+// The example's configuration and data in `dir`, with the input bound through a target descriptor
+// (meta/target.json) instead of a path; returns the configuration's file.
+fs::path example_with_descriptor(const fs::path& dir) {
+    std::string config = read_file(example_dir() / "workflow.yaml");
+    const std::string plain = "    path: data/observations.csv";
+    const auto at = config.find(plain);
+    if (at == std::string::npos) {
+        throw std::runtime_error("the example's input line changed");
+    }
+    config.replace(at, plain.size(), "    descriptor: meta/target.json");
+    write_text_file(dir / "workflow.yaml", config);
+    write_text_file(dir / "data" / "observations.csv",
+                    read_file(example_dir() / "data" / "observations.csv"));
+    const json descriptor = json::parse(R"({
+      "schema_version": "0.0.0", "id": "example-observations", "name": "Example observations",
+      "data": {"id": "observations", "href": "../data/observations.csv", "media_type": "text/csv"},
+      "dialect": {"delimiter": ",", "quotechar": "\"", "missing_token": "NA"},
+      "columns": {"observation_id": "observation_id", "series_id": "series_id",
+                  "variable_id": "variable_id", "time": "time", "value": "value", "unit": "unit",
+                  "missing": "missing", "censoring": "censoring", "upper_limit": "upper_limit"},
+      "time_unit": "d",
+      "variables": [{"id": "population", "name": "Population", "unit": "count",
+                     "value_type": "scalar", "lower_bound": 0}],
+      "x-circle-outcomes": {"variable_ids": []}
+    })");
+    write_text_file(dir / "meta" / "target.json", descriptor.dump(2));
+    return dir / "workflow.yaml";
+}
+
+} // namespace
+
+// The same data through a descriptor: the run is the example's run (same outputs apart from the
+// fingerprint in their ids), the run record says which descriptor was read, and two runs are
+// byte-identical.
+TEST(Example, ADescriptorBindsTheDataAndTheRunIsTheSame) {
+    ScratchDir dir;
+    const Runtime runtime(example_options());
+    const fs::path config = example_with_descriptor(dir.path());
+    const ExampleRun plain = run_example(runtime, dir.path() / "plain");
+    const ExampleRun first = run_example(runtime, dir.path() / "first", {}, utf8(config));
+    const ExampleRun second = run_example(runtime, dir.path() / "second", {}, utf8(config));
+    ASSERT_EQ(first.summary.final_state, WorkflowState::completed);
+    ASSERT_EQ(second.summary.final_state, WorkflowState::completed);
+    EXPECT_EQ(first.summary.ticks_completed, kTicks);
+    EXPECT_EQ(first.fingerprint, second.fingerprint);
+    EXPECT_NE(first.fingerprint, plain.fingerprint); // the descriptor is part of the run
+    for (const char* file : {"outputs/predictions.jsonl", "outputs/state.jsonl"}) {
+        SCOPED_TRACE(file);
+        EXPECT_EQ(read_file(first.out / file), read_file(second.out / file));
+        const auto with_descriptor = json_lines(first.out / file);
+        const auto without = json_lines(plain.out / file);
+        ASSERT_EQ(with_descriptor.size(), without.size());
+        for (std::size_t i = 0; i < without.size(); ++i) {
+            EXPECT_EQ(without_fingerprint(with_descriptor[i]), without_fingerprint(without[i]));
+        }
+    }
+
+    const json record = json::parse(read_file(first.out / "run-record.json"));
+    EXPECT_TRUE(runtime.validate_document(utf8(first.out / "run-record.json")).ok());
+    const json& input = record.at("reproducibility").at("inputs").at("observations");
+    EXPECT_EQ(input.at("source"), "observation-csv");
+    EXPECT_EQ(input.at("descriptor").at("schema_version"), "0.0.0");
+    EXPECT_EQ(input.at("descriptor").at("digest").get<std::string>().size(), 64u);
+    EXPECT_EQ(input.at("digest"),
+              record.at("reproducibility").at("inputs").at("observations").at("digest"));
+    EXPECT_EQ(input.at("digest"), json::parse(read_file(plain.out / "run-record.json"))
+                                      .at("reproducibility")
+                                      .at("inputs")
+                                      .at("observations")
+                                      .at("digest"));
+    const json& counts = record.at("execution").at("inputs").at("observations");
+    EXPECT_EQ(counts.at("rows_total"), 30);
+    EXPECT_EQ(counts.at("rows_before_start"), 0);
+    EXPECT_EQ(counts.at("rows_not_delivered_by_role"), 0);
+    EXPECT_EQ(counts.at("descriptor_id"), "example-observations");
+    // Neither the descriptor's nor the data's directory is in the record.
+    expect_names_none(record, directory_forms({utf8_path(PRAENORA_EXAMPLE_MODULES_DIR),
+                                               dir.path()}));
+}
+
+// A descriptor whose row checks fail is refused when the workflow is opened, with its location.
+TEST(Example, ADescriptorThatDisagreesWithTheDataRefusesTheWorkflow) {
+    ScratchDir dir;
+    const Runtime runtime(example_options());
+    const fs::path config = example_with_descriptor(dir.path());
+    json descriptor = json::parse(read_file(dir.path() / "meta" / "target.json"));
+    descriptor["variables"][0]["unit"] = "kg"; // the CSV says count
+    write_text_file(dir.path() / "meta" / "target.json", descriptor.dump(2));
+    const ValidationReport report = runtime.validate(utf8(config));
+    ASSERT_FALSE(report.ok()) << report.to_text();
+    ASSERT_EQ(report.diagnostics.size(), 1u) << report.to_text();
+    const auto& error = report.diagnostics.front();
+    EXPECT_EQ(error.code, ErrorCode::TARGET_DATA_INVALID) << report.to_text();
+    EXPECT_EQ(error.location.line, 2) << report.to_text();
+    EXPECT_TRUE(contains(error.message, "unit 'count' differs from the unit 'kg'"))
+        << error.message;
+    // Opening the workflow refuses it the same way.
+    const Error thrown = error_of([&] { (void)runtime.open(utf8(config), {}); });
+    EXPECT_EQ(thrown.code(), ErrorCode::TARGET_DATA_INVALID) << thrown.what();
+    EXPECT_EQ(thrown.location().line, 2);
+}

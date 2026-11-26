@@ -1,0 +1,10 @@
+# The descriptor's data.sha256 is not the digest of the CSV: validation refuses it with
+# TARGET_DATA_INVALID, located at /data/sha256 of the descriptor.
+kind: workflow-config
+format_version: "0.1.0"
+workflow: { name: test.single, version: "0.1.0" }
+run: { ticks: 2, time: { unit: d } }
+inputs:
+  source: { source: observation-csv, descriptor: meta/target.json }
+steps:
+  a: { module: { name: fx-echo, version: "0.1.0" } }

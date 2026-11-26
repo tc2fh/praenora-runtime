@@ -1,0 +1,12 @@
+# The observation CSV is named by a target descriptor (meta/target.json, href ../data/obs.csv): no
+# path in the configuration. The descriptor lists the variables x (response) and age (covariate),
+# so the row of age is counted and warned about but never delivered; its time unit is d, like the
+# run's.
+kind: workflow-config
+format_version: "0.1.0"
+workflow: { name: test.single, version: "0.1.0" }
+run: { ticks: 2, time: { unit: d } }
+inputs:
+  source: { source: observation-csv, descriptor: meta/target.json }
+steps:
+  a: { module: { name: fx-echo, version: "0.1.0" } }

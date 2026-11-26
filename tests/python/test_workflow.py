@@ -496,5 +496,99 @@ class DiagnosticsTest(WorkflowTestCase):
             self.assertEqual(workflow.diagnostics(), {"ok": True, "diagnostics": []})
 
 
+class DescriptorTest(WorkflowTestCase):
+    """An observation-csv input named by an ode-uq-spec target descriptor (ADR-0042), through the
+    Python package: the same validation, warnings, fingerprint and run record as the C++ API."""
+
+    def descriptor_config(self, unit="mmol"):
+        """A configuration of test.single whose input is described by meta/target.json: the CSV has
+        a row of the response x and one of the covariate age. Returns the configuration's path."""
+        directory = self.directory / "descriptor"
+        (directory / "meta").mkdir(parents=True, exist_ok=True)
+        (directory / "data").mkdir(parents=True, exist_ok=True)
+        (directory / "data" / "obs.csv").write_text(
+            "series_id,variable_id,time,value\nS1,x,0.5,1\nS1,age,0.5,60\nS1,x,1.5,2\n",
+            encoding="utf-8", newline="\n")
+        descriptor = {
+            "schema_version": "0.0.0", "id": "py-descriptor", "name": "Python test data",
+            "data": {"id": "obs", "href": "../data/obs.csv"},
+            "columns": {"series_id": "series_id", "variable_id": "variable_id", "time": "time",
+                        "value": "value"},
+            "time_unit": "d",
+            "variables": [
+                {"id": "x", "name": "X", "unit": unit, "value_type": "scalar"},
+                {"id": "age", "name": "Age", "unit": "y", "value_type": "scalar",
+                 "role": "covariate"}],
+        }
+        (directory / "meta" / "target.json").write_text(json.dumps(descriptor), encoding="utf-8",
+                                                          newline="\n")
+        config = directory / "workflow.yaml"
+        config.write_text("kind: workflow-config\n"
+                          'format_version: "0.1.0"\n'
+                          'workflow: { name: test.single, version: "0.1.0" }\n'
+                          "run: { ticks: 2, time: { unit: d } }\n"
+                          "inputs:\n"
+                          "  source: { source: observation-csv, descriptor: meta/target.json }\n"
+                          "steps:\n" + step("a", "fx-echo"),
+                          encoding="utf-8", newline="\n")
+        return config
+
+    def test_the_descriptor_is_read_and_its_roles_are_warned_about(self):
+        config = self.descriptor_config()
+        reported = pr.validate(config, **FIXTURE_PATHS)
+        self.assertTrue(reported["ok"])
+        with pr.Workflow(config, output_dir=self.directory / "out", **FIXTURE_PATHS) as workflow:
+            diagnostics = workflow.diagnostics()
+            self.assertEqual(diagnostics, reported)
+            self.assertEqual(len(diagnostics["diagnostics"]), 1)
+            warning = diagnostics["diagnostics"][0]
+            self.assertEqual((warning["severity"], warning["name"]),
+                             ("warning", "TARGET_DATA_INVALID"))
+            self.assertEqual(warning["location"]["line"], 3)
+            self.assertIn("1 of 3 rows belong to variables whose role is not response",
+                          warning["message"])
+            self.assertEqual(workflow.run()["state"], "completed")
+            record = workflow.run_record()
+            self.assertEqual(record["execution"]["inputs"], {"source": {
+                "rows_total": 3, "rows_before_start": 0, "rows_not_delivered_by_role": 1,
+                "descriptor_id": "py-descriptor"}})
+            entry = record["reproducibility"]["inputs"]["source"]
+            self.assertEqual(entry["descriptor"]["schema_version"], "0.0.0")
+            self.assertEqual(len(entry["descriptor"]["digest"]), 64)
+            self.assertEqual(record["fingerprint"], workflow.fingerprint)
+
+    def test_the_descriptor_changes_the_fingerprint_only_where_it_decides(self):
+        config = self.descriptor_config()
+        with pr.Workflow(config, **FIXTURE_PATHS) as workflow:
+            reference = workflow.fingerprint
+        target = config.parent / "meta" / "target.json"
+        descriptor = json.loads(target.read_text(encoding="utf-8"))
+        descriptor["name"] = "Another name"
+        descriptor["x-note"] = "words"
+        target.write_text(json.dumps(descriptor), encoding="utf-8", newline="\n")
+        with pr.Workflow(config, **FIXTURE_PATHS) as workflow:
+            self.assertEqual(workflow.fingerprint, reference)
+        descriptor["variables"][1]["role"] = "response"
+        target.write_text(json.dumps(descriptor), encoding="utf-8", newline="\n")
+        with pr.Workflow(config, **FIXTURE_PATHS) as workflow:
+            self.assertNotEqual(workflow.fingerprint, reference)
+
+    def test_a_descriptor_that_breaks_the_rows_is_refused(self):
+        config = self.descriptor_config()
+        data = config.parent / "data" / "obs.csv"
+        data.write_text("series_id,variable_id,time,value\nS1,nope,0.5,1\n", encoding="utf-8",
+                        newline="\n")
+        # validate() raises for a configuration that is not valid, with the report in the details.
+        with self.assertRaises(pr.PraenoraError) as caught:
+            pr.validate(config, **FIXTURE_PATHS)
+        error = caught.exception
+        self.assertEqual(error.name, "TARGET_DATA_INVALID")
+        self.assertEqual(error.details["diagnostics"][0]["name"], "TARGET_DATA_INVALID")
+        self.assertEqual(error.details["diagnostics"][0]["location"]["line"], 2)
+        with self.assertRaises(pr.PraenoraError) as opened:
+            pr.Workflow(config, **FIXTURE_PATHS)
+        self.assertEqual(opened.exception.name, "TARGET_DATA_INVALID")
+
+
 if __name__ == "__main__":
     unittest.main()

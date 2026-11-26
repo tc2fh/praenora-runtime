@@ -359,6 +359,54 @@ praenora_add_cli_test(cli.run.rows_before_start
     EXPECT_FILE_JSON_VALUE 4 2
     AFTER_CMD validate --document "${_praenora_early_rows_out}/run-record.json")
 
+# A target descriptor (ADR-0042) names the CSV: no path in the configuration. The row of the
+# covariate age is warned about once (TARGET_DATA_INVALID, severity warning, at its CSV line) and
+# never delivered; the run record has the descriptor's id and the counts, validates, and the
+# reproducibility section has the descriptor's digest.
+set(_praenora_descriptor "${_praenora_cli_configs}/descriptor/workflow.yaml")
+praenora_add_cli_test(cli.validate.descriptor
+    CMD validate "${_praenora_descriptor}" ${_praenora_fixture_paths}
+    EXPECT_STDOUT_REGEX "valid \\(1 warning\\(s\\)\\)"
+    EXPECT_STDERR_REGEX
+        "obs\\.csv:3: warning\\[TARGET_DATA_INVALID\\].*1 of 3 rows belong to variables whose role is not response")
+praenora_add_cli_test(cli.validate.descriptor_json
+    CMD validate "${_praenora_descriptor}" ${_praenora_fixture_paths} --json
+    EXPECT_JSON_PATH ok result.ok result.diagnostics.0.severity result.diagnostics.0.name
+        result.diagnostics.0.location.line
+    EXPECT_JSON_VALUE true true warning TARGET_DATA_INVALID 3)
+set(_praenora_descriptor_out "${_praenora_cli_out}/descriptor")
+praenora_add_cli_test(cli.run.descriptor
+    CLEAN_DIR "${_praenora_descriptor_out}"
+    CMD run "${_praenora_descriptor}" ${_praenora_fixture_paths}
+        --output-dir "${_praenora_descriptor_out}" --json
+    EXPECT_JSON_PATH ok result.state result.diagnostics.0.severity
+    EXPECT_JSON_VALUE true completed warning
+    EXPECT_FILE "${_praenora_descriptor_out}/run-record.json"
+    EXPECT_FILE_JSON_PATH execution.inputs.source.rows_total
+        execution.inputs.source.rows_not_delivered_by_role execution.inputs.source.descriptor_id
+        reproducibility.inputs.source.descriptor.schema_version
+    EXPECT_FILE_JSON_VALUE 3 1 cli-descriptor 0.0.0
+    AFTER_CMD validate --document "${_praenora_descriptor_out}/run-record.json")
+set(_praenora_descriptor_bad_sha "${_praenora_cli_configs}/descriptor-bad-sha/workflow.yaml")
+praenora_add_cli_test(cli.validate.descriptor_bad_sha
+    CMD validate "${_praenora_descriptor_bad_sha}" ${_praenora_fixture_paths} --json
+    EXPECT_EXIT 3
+    EXPECT_JSON_PATH ok error.name diagnostics.0.name diagnostics.0.location.pointer
+    EXPECT_JSON_VALUE false TARGET_DATA_INVALID TARGET_DATA_INVALID /data/sha256)
+
+# A warning about the descriptor itself has no line: it is located by a JSON pointer, which the text
+# shows after the code and the JSON has as location.pointer (and no location.line).
+set(_praenora_descriptor_no_unit "${_praenora_cli_configs}/descriptor-no-time-unit/workflow.yaml")
+praenora_add_cli_test(cli.validate.descriptor_no_time_unit
+    CMD validate "${_praenora_descriptor_no_unit}" ${_praenora_fixture_paths}
+    EXPECT_STDOUT_REGEX "valid \\(1 warning\\(s\\)\\)"
+    EXPECT_STDERR_REGEX
+        "target\\.json: warning\\[TARGET_DATA_INVALID\\]: /time_unit: input 'source': the descriptor has no time_unit")
+praenora_add_cli_test(cli.validate.descriptor_no_time_unit_json
+    CMD validate "${_praenora_descriptor_no_unit}" ${_praenora_fixture_paths} --json
+    EXPECT_JSON_PATH ok result.diagnostics.0.severity result.diagnostics.0.location.pointer
+    EXPECT_JSON_VALUE true warning /time_unit)
+
 # Service providers. fx-service requires test.echo@0, which the fixture provider test-echo serves
 # (configuration service/workflow.yaml). providers/old-runtime.provider.json is the manifest of a
 # provider built for runtime 0.0.1 and linux-x86_64, which no runtime of this repository can use,

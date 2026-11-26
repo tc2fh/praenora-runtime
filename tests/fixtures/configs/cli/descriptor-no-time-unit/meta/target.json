@@ -1,0 +1,8 @@
+{
+  "schema_version": "0.0.0",
+  "id": "cli-no-time-unit",
+  "name": "CLI test data without a time unit",
+  "data": { "id": "obs", "href": "../data/obs.csv" },
+  "columns": { "series_id": "series_id", "variable_id": "variable_id", "time": "time", "value": "value" },
+  "variables": [ { "id": "x", "name": "X", "unit": "mmol", "value_type": "scalar" } ]
+}
