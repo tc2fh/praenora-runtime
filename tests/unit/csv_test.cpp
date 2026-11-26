@@ -112,3 +112,28 @@ TEST(Csv, BlankLinesAreSkipped) {
     EXPECT_EQ(table.rows, (Rows{{"1", "2"}, {"3", "4"}}));
     EXPECT_EQ(table.row_lines, (std::vector<std::int64_t>{3, 5}));
 }
+
+TEST(Csv, ADialectChangesTheDelimiterAndTheQuote) {
+    const praenora::detail::CsvDialect dialect{';', '\''};
+    const CsvTable table = parse_csv("a;b;c\n"
+                                     "'x; y';'say ''hi''';plain\n"
+                                     "1,5;\"q\";\n",
+                                     "data.csv", dialect);
+    EXPECT_EQ(table.header, (std::vector<std::string>{"a", "b", "c"}));
+    // A comma and a double quote are ordinary text now.
+    EXPECT_EQ(table.rows, (Rows{{"x; y", "say 'hi'", "plain"}, {"1,5", "\"q\"", ""}}));
+}
+
+TEST(Csv, ADialectQuoteKeepsLineBreaksInsideQuotedFields) {
+    const praenora::detail::CsvDialect dialect{'\t', '|'};
+    const CsvTable table = parse_csv("id\tnote\n1\t|two\nlines|\n", "data.csv", dialect);
+    EXPECT_EQ(table.rows, (Rows{{"1", "two\nlines"}}));
+}
+
+TEST(Csv, TheDefaultDialectIsTheCommaAndTheDoubleQuote) {
+    EXPECT_EQ(parse_csv("a,b\n\"1,2\",3\n", "data.csv").rows,
+              parse_csv("a,b\n\"1,2\",3\n", "data.csv", {}).rows);
+    // With another delimiter a comma does not split, and a double quote opens nothing.
+    const CsvTable table = parse_csv("a;b\n1,2;\"3\n", "data.csv", {';', '\''});
+    EXPECT_EQ(table.rows, (Rows{{"1,2", "\"3"}}));
+}

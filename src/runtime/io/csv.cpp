@@ -15,7 +15,8 @@ constexpr std::string_view kBom = "\xEF\xBB\xBF";
 
 class CsvParser {
 public:
-    CsvParser(std::string_view text, std::string_view origin) : text_(text), origin_(origin) {}
+    CsvParser(std::string_view text, std::string_view origin, CsvDialect dialect)
+        : text_(text), origin_(origin), dialect_(dialect) {}
 
     CsvTable run() {
         std::size_t i = 0;
@@ -23,14 +24,14 @@ public:
             const char c = text_[i];
             if (in_quotes_) {
                 i = quoted_char(i);
-            } else if (c == ',') {
+            } else if (c == dialect_.delimiter) {
                 end_field();
                 ++i;
             } else if (c == '\n' || (c == '\r' && i + 1 < text_.size() && text_[i + 1] == '\n')) {
                 end_record();
                 i += c == '\r' ? 2 : 1;
                 ++line_;
-            } else if (c == '"') {
+            } else if (c == dialect_.quote) {
                 if (field_started_) {
                     fail(line_, after_quote_
                                     ? "a field continues after its closing quote"
@@ -72,9 +73,9 @@ private:
     // One character inside a quoted field, at `i`; returns the position after it.
     std::size_t quoted_char(std::size_t i) {
         const char c = text_[i];
-        if (c == '"') {
-            if (i + 1 < text_.size() && text_[i + 1] == '"') {
-                field_ += '"';
+        if (c == dialect_.quote) {
+            if (i + 1 < text_.size() && text_[i + 1] == dialect_.quote) {
+                field_ += dialect_.quote;
                 return i + 2;
             }
             in_quotes_ = false;
@@ -148,6 +149,7 @@ private:
 
     const std::string_view text_;
     const std::string_view origin_;
+    const CsvDialect dialect_;
     std::vector<std::vector<std::string>> records_;
     std::vector<std::int64_t> lines_;
     std::vector<std::string> fields_;
@@ -158,11 +160,11 @@ private:
 
 } // namespace
 
-CsvTable parse_csv(std::string_view text, std::string_view origin) {
+CsvTable parse_csv(std::string_view text, std::string_view origin, CsvDialect dialect) {
     if (text.compare(0, kBom.size(), kBom) == 0) {
         text.remove_prefix(kBom.size());
     }
-    return CsvParser(text, origin).run();
+    return CsvParser(text, origin, dialect).run();
 }
 
 } // namespace praenora::detail
