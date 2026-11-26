@@ -139,13 +139,14 @@ json inlined(const json& node, const json& root, const std::string& schema,
 }
 
 // `schema`, self-contained: local references inlined, and the keywords that only make sense at
-// the root of a schema document dropped ("$schema", "definitions" and those in `also`).
+// the root of a schema document dropped ("$schema", "$defs", "definitions" and those in `also`).
 json self_contained(const json& schema, const std::string& name,
                     std::initializer_list<const char*> also = {}) {
     std::vector<std::string> expanding;
     json result = inlined(schema, schema, name, expanding);
     if (result.is_object()) {
         result.erase("$schema");
+        result.erase("$defs");
         result.erase("definitions");
         for (const char* keyword : also) {
             result.erase(keyword);

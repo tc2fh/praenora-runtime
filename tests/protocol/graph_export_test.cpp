@@ -196,6 +196,7 @@ TEST(GraphExport, AsyncApiHasRequiredTopLevelFields) {
             EXPECT_EQ(payload.at("properties").at("tick").at("type"), "integer");
             EXPECT_FALSE(payload.contains("$id"));
             EXPECT_FALSE(payload.contains("definitions"));
+            EXPECT_FALSE(payload.contains("$defs"));
         }
 
         // Every reference resolves within the document.

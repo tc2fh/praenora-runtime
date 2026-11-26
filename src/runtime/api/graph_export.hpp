@@ -28,8 +28,8 @@ namespace praenora::detail {
 //   title "<type>@<version>", contentType, payload}). A payload is the pmp-envelope schema with
 //   properties.data replaced by the message type's schema; both are made self-contained: their
 //   local references ("$ref": "#/...") are replaced by what they point to, and "$schema", "$id"
-//   (of the envelope) and "definitions" are dropped, so the document holds no duplicate $id and
-//   every reference resolves within it.
+//   (of the envelope), "$defs" and "definitions" are dropped, so the document holds no duplicate
+//   $id and every reference resolves within it.
 // Throws praenora::Error: the first error of validate_graph() for an invalid definition;
 // CATALOG_ENTRY_NOT_FOUND for a message type the catalog lacks; UNSUPPORTED (asyncapi) when the
 // definition carries two versions of one message type, or a schema has a recursive local
