@@ -4,6 +4,7 @@
 // its sibling <name>.expect.json ({"code": "<ERROR NAME>", "pointer": "<json pointer>"}). Each
 // document is checked against the schema of its kind at its own format_version (0.1 for the
 // module ABI's documents).
+#include "catalog/catalog.hpp"
 #include "core/semver.hpp"
 #include "document/schema.hpp"
 #include "document/schema_registry.hpp"
@@ -25,6 +26,7 @@
 
 namespace fs = std::filesystem;
 using nlohmann::json;
+using praenora::detail::Catalog;
 using praenora::detail::load_document_file;
 using praenora::detail::parse_semver;
 using praenora::detail::SchemaIssue;
@@ -199,4 +201,80 @@ TEST(Schemas, GeneratedFixtureManifestsAreValid) {
         }
     }
     EXPECT_GT(count, 0);
+}
+
+namespace {
+
+// Appends what is draft-07 only in `node` (a schema or a document holding schemas): the keywords
+// draft-07 spells differently in 2020-12 and the draft-07 references.
+void find_draft07_spellings(const json& node, const std::string& pointer,
+                            std::vector<std::string>& found) {
+    if (node.is_object()) {
+        for (const auto& item : node.items()) {
+            const std::string where = pointer + "/" + item.key();
+            const json& value = item.value();
+            if ((item.key() == "definitions" || item.key() == "dependencies") &&
+                value.is_object()) {
+                found.push_back(where);
+            } else if (item.key() == "additionalItems") {
+                found.push_back(where);
+            } else if (item.key() == "items" && value.is_array()) {
+                found.push_back(where);
+            } else if (item.key() == "$ref" && value.is_string() &&
+                       value.get<std::string>().find("/definitions/") != std::string::npos) {
+                found.push_back(where);
+            }
+            find_draft07_spellings(value, where, found);
+        }
+    } else if (node.is_array()) {
+        for (std::size_t i = 0; i < node.size(); ++i) {
+            find_draft07_spellings(node[i], pointer + "/" + std::to_string(i), found);
+        }
+    }
+}
+
+} // namespace
+
+// Every schema the runtime owns declares 2020-12 and uses its spelling of the keywords: the 19
+// document schemas here (the envelope also within what AsyncAPI expresses), the data schemas of the
+// message types below.
+TEST(Schemas, EveryDocumentSchemaIs202012) {
+    const auto& registry = SchemaRegistry::builtin();
+    const auto entries = registry.entries();
+    EXPECT_EQ(entries.size(), 19u);
+    for (const auto& entry : entries) {
+        SCOPED_TRACE(entry.first);
+        const json schema = json::parse(registry.text_for_kind(entry.first, entry.second));
+        EXPECT_EQ(schema.value("$schema", ""), "https://json-schema.org/draft/2020-12/schema");
+        std::vector<std::string> found;
+        find_draft07_spellings(schema, "", found);
+        EXPECT_TRUE(found.empty()) << "draft-07 spelling at " << (found.empty() ? "" : found.front());
+        if (entry.first == "pmp-envelope") {
+            // The AsyncAPI export embeds the envelope as it does a message type's schema.
+            EXPECT_TRUE(praenora::detail::beyond_asyncapi_subset(schema).empty());
+        }
+    }
+}
+
+// The data schemas of the embedded message types are 2020-12 too, and stay within what AsyncAPI
+// 3.0.0 expresses (the catalog refuses one that does not).
+TEST(Schemas, EveryMessageTypeSchemaIs202012) {
+    const Catalog catalog = Catalog::load({});
+    int count = 0;
+    for (const auto& entry : catalog.entries()) {
+        if (entry.kind != "message-type") {
+            continue;
+        }
+        SCOPED_TRACE(entry.id);
+        ++count;
+        const json* document = catalog.raw_entry("message-type", entry.id, parse_semver(entry.version));
+        ASSERT_NE(document, nullptr);
+        const json& schema = document->at("schema");
+        EXPECT_EQ(schema.value("$schema", ""), "https://json-schema.org/draft/2020-12/schema");
+        std::vector<std::string> found;
+        find_draft07_spellings(schema, "", found);
+        EXPECT_TRUE(found.empty()) << "draft-07 spelling at " << (found.empty() ? "" : found.front());
+        EXPECT_TRUE(praenora::detail::beyond_asyncapi_subset(schema).empty());
+    }
+    EXPECT_EQ(count, 7);
 }
