@@ -12,6 +12,7 @@
 #include <praenora/runtime/error.hpp>
 
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
@@ -23,8 +24,21 @@ namespace praenora::detail {
 // execution.inputs.<input> (outside the hashed section: both numbers follow from the file's bytes
 // and the configuration, which the fingerprint covers already).
 struct SourceCounts {
-    std::uint64_t rows_total = 0;        // the rows of the file
-    std::uint64_t rows_before_start = 0; // rows whose time is before run.time.start: never delivered
+    std::uint64_t rows_total = 0; // the rows of the file
+    // Rows whose time is before run.time.start, among those delivered by role: never delivered.
+    std::uint64_t rows_before_start = 0;
+    // With a target descriptor: rows of variables whose role is not response, which the model
+    // never gets. Not set for a source without a descriptor.
+    std::optional<std::uint64_t> rows_not_delivered_by_role;
+};
+
+// The target descriptor of an observation-csv source (io/target_descriptor.hpp), as the run record
+// needs it.
+struct SourceDescriptor {
+    std::string id;             // the descriptor's id
+    std::string digest;         // of the parts that decide what the runtime does (ADR-0042)
+    std::string schema_version; // "0.0.0"
+    std::filesystem::path data_file; // the CSV that was read
 };
 
 class InputSource {
@@ -40,6 +54,10 @@ public:
     // The counts of the source's data, or nullopt for a source that has no rows (a
     // json-document). Validation puts them into execution.inputs of the run record.
     virtual const std::optional<SourceCounts>& counts() const;
+
+    // The descriptor of the source's data, or nullopt for a source without one. Part of the run
+    // fingerprint (its digest) and the run record.
+    virtual const std::optional<SourceDescriptor>& descriptor() const;
 
     // The `data` of the input's message for tick `tick`, whose window is
     // [window_start, window_end) in the workflow's time unit.
@@ -79,6 +97,11 @@ public:
 //   the rows whose time t satisfies start <= t < end; each row carries series_id, variable_id,
 //   time, value, missing, censoring and weight, plus the optional fields that are not empty.
 // - exhausted_after(end) is true when there are no rows or end > the last row's time.
+//   With binding.descriptor (an ode-uq-spec target descriptor, io/target_descriptor.hpp; ADR-0042)
+//   the CSV is the descriptor's data.href (or binding.path), its dialect, columns, variables, unit
+//   and duplicate_policy apply, rows of variables whose role is not response are counted
+//   (counts().rows_not_delivered_by_role) and never delivered, and descriptor() is set. Columns the
+//   descriptor does not list are not read.
 // json-document: a JSON or YAML document (document/yaml_loader.hpp) that must satisfy
 // `port_type`; batch() returns it every tick.
 //
@@ -88,7 +111,15 @@ public:
 // - TARGET_DATA_INVALID, located at the file and line, for malformed CSV, a missing required
 //   column (line 1) and rows that break the rules, and located at the file for an observation
 //   CSV beyond the size limit;
+//   and, with a descriptor, a row of a variable it does not list or in another unit, a duplicate
+//   its duplicate_policy refuses, a data.sha256 that is not the CSV's digest, duplicate variable
+//   ids and an inverted bound (located in the descriptor);
 // - PARSE_ERROR for a json-document that is not JSON or YAML;
+// - INPUT_BINDING_INVALID for a remote data.href without binding.path, a binding.path and a
+//   data.href that name two files, and a descriptor time_unit other than the run's;
+// - SCHEMA_VIOLATION, FORMAT_VERSION_UNSUPPORTED, PARSE_ERROR and UNSUPPORTED for a descriptor
+//   that breaks its schema, has another schema_version, is not JSON, or asks for what the
+//   runtime does not do (load_target_descriptor());
 // - INPUT_BINDING_INVALID for an unknown source kind, two columns read from one header, an
 //   observation batch that `port_type` does not accept, and a json-document that violates
 //   `port_type` (located at the problem in the document).

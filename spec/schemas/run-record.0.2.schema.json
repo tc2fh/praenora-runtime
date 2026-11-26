@@ -144,6 +144,23 @@
                   "additionalProperties": {
                     "type": "string"
                   }
+                },
+                "descriptor": {
+                  "type": "object",
+                  "required": [
+                    "digest",
+                    "schema_version"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "digest": {
+                      "$ref": "#/$defs/sha256"
+                    },
+                    "schema_version": {
+                      "type": "string"
+                    }
+                  },
+                  "description": "The target descriptor of an observation-csv input: the digest of the parts of it that decide what the runtime does with the data (ADR-0042), and its schema version."
                 }
               }
             }
@@ -383,9 +400,15 @@
                 },
                 "rows_before_start": {
                   "$ref": "#/$defs/count"
+                },
+                "rows_not_delivered_by_role": {
+                  "$ref": "#/$defs/count"
+                },
+                "descriptor_id": {
+                  "type": "string"
                 }
               },
-              "description": "rows_total: the rows of the input's observation CSV; rows_before_start: those whose time is before run.time.start, which the replay never delivers."
+              "description": "rows_total: the rows of the input's observation CSV; rows_before_start: those of the rows that are delivered by role whose time is before run.time.start, which the replay never delivers. Inputs with a target descriptor also have rows_not_delivered_by_role (rows of variables whose role is not response, which the model never gets) and descriptor_id (the descriptor's id)."
             }
           },
           "additionalProperties": false,

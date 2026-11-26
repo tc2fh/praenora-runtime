@@ -546,27 +546,48 @@ private:
             // A source is not built from a path or columns mapping already reported, which would
             // only report the same problem again.
             if (binding == config_.inputs.end() || type == nullptr ||
-                reported_at(pointer + "/path") || reported_under(pointer + "/columns")) {
+                reported_at(pointer + "/path") || reported_at(pointer + "/descriptor") ||
+                reported_under(pointer + "/columns")) {
                 continue;
             }
             // The status tells a missing file from one whose status cannot be read, such as a
-            // file in a directory that the process may not search (`ec` is set then).
-            std::error_code ec;
-            const fs::file_status status = fs::status(binding->second.path, ec);
-            if (!fs::is_regular_file(status)) {
+            // file in a directory that the process may not search (`ec` is set then). The data
+            // file of a descriptor is found by the source, from the descriptor's data.href.
+            bool unavailable = false;
+            const std::string& input = binding->second.input; // = name, which a lambda cannot capture
+            const auto check_file = [&](const fs::path& file, const char* member, const char* what) {
+                std::error_code ec;
+                const fs::file_status status = fs::status(file, ec);
+                if (fs::is_regular_file(status)) {
+                    return;
+                }
                 std::string why = "is not a file";
                 if (status.type() == fs::file_type::not_found) {
                     why = "does not exist";
                 } else if (ec) {
                     why = "cannot be read: " + ec.message();
                 }
-                add(ErrorCode::TARGET_DATA_UNAVAILABLE, at(pointer + "/path"),
-                    "input '" + name + "': the data file '" + path_to_utf8(binding->second.path) +
-                        "' " + why);
+                add(ErrorCode::TARGET_DATA_UNAVAILABLE, at(pointer + member),
+                    "input '" + input + "': the " + what + " '" + path_to_utf8(file) + "' " + why);
+                unavailable = true;
+            };
+            if (!binding->second.descriptor.empty()) {
+                check_file(binding->second.descriptor, "/descriptor", "target descriptor");
+            }
+            if (!binding->second.path.empty()) {
+                check_file(binding->second.path, "/path", "data file");
+            }
+            if (unavailable) {
                 continue;
             }
             try {
                 sources_[name] = make_input_source(binding->second, *type, config_.time);
+                // The CSV that a descriptor named is the input's data file from here on (the engine
+                // locates its errors there).
+                if (const auto& descriptor = sources_[name]->descriptor();
+                    descriptor && binding->second.path.empty()) {
+                    binding->second.path = descriptor->data_file;
+                }
                 // What the source noticed and does not refuse: warnings, as found.
                 for (const Diagnostic& note : sources_[name]->notes()) {
                     report_.add(note);
@@ -620,8 +641,15 @@ private:
         result.input_counts = json::object();
         for (const auto& [name, source] : sources_) {
             if (const auto& counts = source->counts()) {
-                result.input_counts[name] = {{"rows_total", counts->rows_total},
-                                             {"rows_before_start", counts->rows_before_start}};
+                json entry = {{"rows_total", counts->rows_total},
+                              {"rows_before_start", counts->rows_before_start}};
+                if (counts->rows_not_delivered_by_role) {
+                    entry["rows_not_delivered_by_role"] = *counts->rows_not_delivered_by_role;
+                }
+                if (const auto& descriptor = source->descriptor()) {
+                    entry["descriptor_id"] = descriptor->id;
+                }
+                result.input_counts[name] = std::move(entry);
             }
         }
         result.sources = std::move(sources_);
@@ -661,6 +689,10 @@ private:
             json entry = {{"source", binding.source}, {"digest", source->digest()}};
             if (!binding.columns.empty()) {
                 entry["columns"] = binding.columns;
+            }
+            if (const auto& descriptor = source->descriptor()) {
+                entry["descriptor"] = {{"digest", descriptor->digest},
+                                       {"schema_version", descriptor->schema_version}};
             }
             inputs[name] = std::move(entry);
         }

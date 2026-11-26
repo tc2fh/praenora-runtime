@@ -16,6 +16,11 @@ const std::optional<SourceCounts>& InputSource::counts() const {
     return none;
 }
 
+const std::optional<SourceDescriptor>& InputSource::descriptor() const {
+    static const std::optional<SourceDescriptor> none;
+    return none;
+}
+
 std::unique_ptr<InputSource> make_input_source(const InputBinding& binding,
                                                const MessageTypeDef& port_type,
                                                const TimeBase& time) {

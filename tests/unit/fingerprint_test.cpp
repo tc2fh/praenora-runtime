@@ -24,6 +24,7 @@
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
+#include <functional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -483,4 +484,123 @@ TEST(Fingerprint, OneProviderServesEachServiceOfTheRun) {
     EXPECT_EQ(service.at("minor"), 7);
     EXPECT_EQ(both.reproducibility.at("steps").at("a").at("services"), json({"test.echo@0"}));
     EXPECT_EQ(both.reproducibility.at("steps").at("b").at("services"), json({"test.echo@0"}));
+}
+
+// ---- the target descriptor ----
+
+namespace {
+
+json descriptor_json() {
+    return json::parse(R"({
+      "schema_version": "0.0.0", "id": "d1", "name": "Test",
+      "data": {"id": "obs", "href": "../obs.csv"},
+      "columns": {"series_id": "series_id", "variable_id": "variable_id", "time": "time",
+                  "value": "value", "unit": "unit"},
+      "time_unit": "1",
+      "variables": [{"id": "x", "name": "X", "unit": "count", "value_type": "scalar"}]
+    })");
+}
+
+// A valid configuration of test.chain whose input is described by `descriptor` (sub/target.json),
+// over the observations CSV one level up, with a path too when `extra_input` gives one.
+praenora::detail::ValidatedWorkflow validated_with(const json& descriptor,
+                                                   const std::string& extra_input = "") {
+    ScratchDir dir;
+    write_text_file(dir.path() / "obs.csv", praenora::test::observations_csv());
+    write_text_file(dir.path() / "sub" / "target.json", descriptor.dump(2));
+    std::string yaml = chain_config();
+    const std::string plain = "  source: { source: observation-csv, path: obs.csv }\n";
+    yaml.replace(yaml.find(plain), plain.size(),
+                 "  source:\n    source: observation-csv\n    descriptor: sub/target.json\n" +
+                     extra_input);
+    auto result = validate_text(dir.path(), yaml);
+    if (!result.workflow) {
+        ADD_FAILURE() << result.report.to_text();
+        throw std::runtime_error("validation failed");
+    }
+    return std::move(*result.workflow);
+}
+
+} // namespace
+
+TEST(Fingerprint, ADescriptorAddsItsDigestToTheInputsEntry) {
+    const auto workflow = validated_with(descriptor_json());
+    const json& entry = workflow.reproducibility.at("inputs").at("source");
+    // The CSV's digest as before, the descriptor's beside it; no path, no columns.
+    EXPECT_EQ(entry.at("source"), "observation-csv");
+    EXPECT_EQ(entry.at("digest"),
+              praenora::detail::sha256_hex(praenora::test::observations_csv()));
+    EXPECT_EQ(entry.at("descriptor").at("schema_version"), "0.0.0");
+    EXPECT_EQ(entry.at("descriptor").at("digest").get<std::string>().size(), 64u);
+    EXPECT_EQ(entry.size(), 3u);
+    // The section, with it, satisfies the run record's schema.
+    const json record = {
+        {"kind", "run-record"},
+        {"format_version", "0.2.0"},
+        {"fingerprint", workflow.fingerprint},
+        {"reproducibility", workflow.reproducibility},
+        {"execution",
+         {{"status", "running"},
+          {"ticks_completed", 0},
+          {"platform",
+           {{"os", "macos"}, {"arch", "arm64"}, {"compiler", "c"}, {"build_type", "Debug"}}},
+          {"overrides", json::object()},
+          {"validation", "strict"},
+          {"manifests", workflow.manifest_locations},
+          {"inputs", workflow.input_counts},
+          {"isolation", workflow.isolation}}}};
+    const auto& schema = praenora::detail::SchemaRegistry::builtin().for_kind(
+        "run-record", praenora::detail::parse_semver("0.2.0"));
+    for (const auto& issue : schema.validate(record)) {
+        ADD_FAILURE() << issue.pointer << ": " << issue.message;
+    }
+}
+
+TEST(Fingerprint, ADescriptorChangesItAsPartOfTheResultsDo) {
+    const json base = descriptor_json();
+    const auto reference = validated_with(base);
+    // Not the same as the plain binding of the same data: the descriptor is part of what decides.
+    EXPECT_NE(validated(chain_config()).fingerprint, reference.fingerprint);
+    EXPECT_EQ(validated_with(base).fingerprint, reference.fingerprint); // stable
+
+    // Words and places: no change.
+    json prose = base;
+    prose["id"] = "another";
+    prose["name"] = "Another name";
+    prose["description"] = "Words";
+    prose["data"]["id"] = "other-data";
+    prose["data"]["media_type"] = "text/csv";
+    prose["x-circle-outcomes"] = {{"variable_ids", json::array({"x"})}};
+    prose["variables"][0]["name"] = "Renamed";
+    EXPECT_EQ(validated_with(prose).fingerprint, reference.fingerprint);
+    // The descriptor's id is not hashed, but the run record reads it.
+    EXPECT_EQ(validated_with(prose).input_counts.at("source").at("descriptor_id"), "another");
+    // The href can be given by the configuration's path instead: the same data, the same run.
+    json remote = base;
+    remote["data"]["href"] = "https://example.org/x.csv";
+    EXPECT_EQ(validated_with(remote, "    path: obs.csv\n").fingerprint, reference.fingerprint);
+
+    // What the runtime does with the data: a change.
+    for (const auto& edit : std::vector<std::pair<std::string, std::function<void(json&)>>>{
+             {"role", [](json& d) { d["variables"][0]["role"] = "covariate"; }},
+             {"bounds", [](json& d) { d["variables"][0]["lower_bound"] = -1e9; }},
+             {"duplicate policy", [](json& d) { d["duplicate_policy"] = "error"; }},
+             {"column mapping", [](json& d) { d["columns"].erase("unit"); }},
+             {"time unit", [](json& d) { d.erase("time_unit"); }}}) {
+        SCOPED_TRACE(edit.first);
+        json changed = base;
+        edit.second(changed);
+        EXPECT_NE(validated_with(changed).fingerprint, reference.fingerprint);
+    }
+}
+
+TEST(Fingerprint, AnInputWithoutADescriptorHasTheEntryItAlwaysHad) {
+    const auto workflow = validated(chain_config());
+    const json& entry = workflow.reproducibility.at("inputs").at("source");
+    EXPECT_EQ(entry, (json{{"source", "observation-csv"},
+                           {"digest", praenora::detail::sha256_hex(
+                                          praenora::test::observations_csv())}}));
+    // Its counts are the two they were; nothing of a descriptor.
+    EXPECT_EQ(workflow.input_counts,
+              json::parse(R"({"source":{"rows_total":4,"rows_before_start":0}})"));
 }

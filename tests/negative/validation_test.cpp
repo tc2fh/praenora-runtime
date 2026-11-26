@@ -780,3 +780,197 @@ TEST(Validation, AllRowsBeforeTheStartGiveOneWarningAndCountsOfTwoOfTwo) {
     EXPECT_EQ(result.workflow->input_counts,
               json::parse(R"({"source":{"rows_total":2,"rows_before_start":2}})"));
 }
+
+// ---- the target descriptor ----
+
+namespace {
+
+// A target descriptor for data/obs.csv, written to data/target.json: variables x (response),
+// age (covariate); time unit d.
+json descriptor_document() {
+    return json::parse(R"({
+      "schema_version": "0.0.0", "id": "d1", "name": "Test",
+      "data": {"id": "obs", "href": "obs.csv"},
+      "columns": {"series_id": "series_id", "variable_id": "variable_id", "time": "time",
+                  "value": "value"},
+      "time_unit": "d",
+      "variables": [
+        {"id": "x", "name": "X", "unit": "mmol", "value_type": "scalar"},
+        {"id": "age", "name": "Age", "unit": "y", "value_type": "scalar", "role": "covariate"}]
+    })");
+}
+
+// A configuration of test.single whose input "source" is described by data/target.json; the
+// descriptor is on line 8.
+std::string descriptor_config(const std::string& extra_input = "") {
+    return config("run: { ticks: 1, time: { unit: d } }\n"
+                  "inputs:\n"
+                  "  source:\n"
+                  "    source: observation-csv\n"
+                  "    descriptor: data/target.json\n" +
+                  extra_input +
+                  "steps:\n"
+                  "  a: { module: { name: fx-echo, version: \"0.1.0\" } }\n");
+}
+
+void write_descriptor_data(const fs::path& dir, const json& descriptor,
+                           const std::string& csv = "series_id,variable_id,time,value\n"
+                                                    "S1,x,0.5,1\n"
+                                                    "S1,age,0.5,60\n"
+                                                    "S1,x,1.5,2\n") {
+    write_text_file(dir / "data" / "target.json", descriptor.dump(2));
+    write_text_file(dir / "data" / "obs.csv", csv);
+}
+
+} // namespace
+
+TEST(Validation, ADescriptorNamesTheCsvAndItsRolesDecideWhatIsDelivered) {
+    ScratchDir dir;
+    write_descriptor_data(dir.path(), descriptor_document());
+    const auto result = validate_text(dir.path(), descriptor_config());
+    ASSERT_TRUE(result.workflow.has_value()) << result.report.to_text();
+    EXPECT_TRUE(result.errors().empty());
+    // The CSV that the descriptor named is the input's data file from here on.
+    EXPECT_EQ(result.workflow->config.inputs.at("source").path, dir.path() / "data" / "obs.csv");
+    // One warning: the covariate row is not delivered.
+    ASSERT_EQ(result.report.diagnostics.size(), 1u) << result.report.to_text();
+    const Diagnostic& warning = result.report.diagnostics[0];
+    EXPECT_EQ(warning.severity, Severity::warning);
+    EXPECT_EQ(warning.code, ErrorCode::TARGET_DATA_INVALID);
+    EXPECT_EQ(warning.location.file, path_to_utf8(dir.path() / "data" / "obs.csv"));
+    EXPECT_EQ(warning.location.line, 3);
+    EXPECT_TRUE(contains(warning.message, "input 'source': 1 of 3 rows belong to variables whose "
+                                          "role is not response"))
+        << warning.message;
+    // The counts and the descriptor's id are in execution.inputs, outside the hashed section.
+    EXPECT_EQ(result.workflow->input_counts,
+              json::parse(R"({"source":{"rows_total":3,"rows_before_start":0,
+                              "rows_not_delivered_by_role":1,"descriptor_id":"d1"}})"));
+    const json& entry = result.workflow->reproducibility.at("inputs").at("source");
+    EXPECT_EQ(entry.at("source"), "observation-csv");
+    EXPECT_EQ(entry.at("digest"),
+              praenora::detail::sha256_hex(
+                  "series_id,variable_id,time,value\nS1,x,0.5,1\nS1,age,0.5,60\nS1,x,1.5,2\n"));
+    EXPECT_EQ(entry.at("descriptor").at("schema_version"), "0.0.0");
+    EXPECT_EQ(entry.at("descriptor").at("digest").get<std::string>().size(), 64u);
+    EXPECT_FALSE(entry.contains("columns"));
+    EXPECT_EQ(entry.dump().find("target.json"), std::string::npos);
+}
+
+TEST(Validation, AMissingDescriptorFileIsTargetDataUnavailableAtTheConfigurationsKey) {
+    ScratchDir dir;
+    write_text_file(dir.path() / "data" / "obs.csv", "series_id,variable_id,time,value\n");
+    const auto result = validate_text(dir.path(), descriptor_config());
+    EXPECT_FALSE(result.workflow.has_value());
+    ASSERT_EQ(result.errors().size(), 1u) << result.report.to_text();
+    const Diagnostic error = result.errors()[0]; // a copy: errors() is a temporary
+    EXPECT_EQ(error.code, ErrorCode::TARGET_DATA_UNAVAILABLE) << result.report.to_text();
+    EXPECT_EQ(error.location.pointer, "/inputs/source/descriptor");
+    EXPECT_EQ(error.location.line, 8);
+    EXPECT_TRUE(contains(error.message, "the target descriptor")) << error.message;
+}
+
+TEST(Validation, ADescriptorWhoseCsvIsMissingIsTargetDataUnavailable) {
+    ScratchDir dir;
+    write_text_file(dir.path() / "data" / "target.json", descriptor_document().dump());
+    const auto result = validate_text(dir.path(), descriptor_config());
+    EXPECT_FALSE(result.workflow.has_value());
+    ASSERT_EQ(result.errors().size(), 1u) << result.report.to_text();
+    EXPECT_EQ(result.errors()[0].code, ErrorCode::TARGET_DATA_UNAVAILABLE);
+    EXPECT_EQ(result.errors()[0].location.file, path_to_utf8(dir.path() / "data" / "obs.csv"));
+}
+
+TEST(Validation, ADescriptorThatBreaksItsSchemaIsLocatedInTheDescriptor) {
+    ScratchDir dir;
+    json descriptor = descriptor_document();
+    descriptor["variables"][0]["role"] = "outcome";
+    write_descriptor_data(dir.path(), descriptor);
+    const auto result = validate_text(dir.path(), descriptor_config());
+    EXPECT_FALSE(result.workflow.has_value());
+    ASSERT_EQ(result.errors().size(), 1u) << result.report.to_text();
+    const Diagnostic error = result.errors()[0]; // a copy: errors() is a temporary
+    EXPECT_EQ(error.code, ErrorCode::SCHEMA_VIOLATION);
+    EXPECT_EQ(error.location.file, path_to_utf8(dir.path() / "data" / "target.json"));
+    EXPECT_EQ(error.location.pointer, "/variables/0/role");
+    EXPECT_GT(error.location.line, 0);
+    EXPECT_TRUE(contains(error.message, "input 'source'")) << error.message;
+}
+
+TEST(Validation, ARemoteHrefNeedsThePathOfTheConfiguration) {
+    ScratchDir dir;
+    json descriptor = descriptor_document();
+    descriptor["data"]["href"] = "https://example.org/obs.csv";
+    write_descriptor_data(dir.path(), descriptor);
+    const auto refused = validate_text(dir.path(), descriptor_config());
+    EXPECT_FALSE(refused.workflow.has_value());
+    ASSERT_EQ(refused.errors().size(), 1u) << refused.report.to_text();
+    EXPECT_EQ(refused.errors()[0].code, ErrorCode::INPUT_BINDING_INVALID);
+    EXPECT_TRUE(contains(refused.errors()[0].message, "remote and cannot be read"))
+        << refused.errors()[0].message;
+    // With the path, the file is read.
+    const auto accepted = validate_text(dir.path(), descriptor_config("    path: data/obs.csv\n"));
+    ASSERT_TRUE(accepted.workflow.has_value()) << accepted.report.to_text();
+}
+
+TEST(Validation, ThePathAndTheHrefMustNameOneFile) {
+    ScratchDir dir;
+    write_descriptor_data(dir.path(), descriptor_document());
+    write_text_file(dir.path() / "data" / "other.csv", "series_id,variable_id,time,value\n");
+    const auto result = validate_text(dir.path(), descriptor_config("    path: data/other.csv\n"));
+    EXPECT_FALSE(result.workflow.has_value());
+    ASSERT_EQ(result.errors().size(), 1u) << result.report.to_text();
+    EXPECT_EQ(result.errors()[0].code, ErrorCode::INPUT_BINDING_INVALID);
+    EXPECT_TRUE(contains(result.errors()[0].message, "name one file"))
+        << result.errors()[0].message;
+}
+
+TEST(Validation, ColumnsBesideADescriptorAreRefusedByTheConfiguration) {
+    ScratchDir dir;
+    write_descriptor_data(dir.path(), descriptor_document());
+    const auto result =
+        validate_text(dir.path(), descriptor_config("    columns: { value: val }\n"));
+    EXPECT_FALSE(result.workflow.has_value());
+    ASSERT_EQ(result.errors().size(), 1u) << result.report.to_text();
+    EXPECT_EQ(result.errors()[0].code, ErrorCode::CONFIG_INVALID);
+    EXPECT_EQ(result.errors()[0].location.pointer, "/inputs/source/columns");
+}
+
+TEST(Validation, TheDescriptorsTimeUnitMustBeTheRunsUnit) {
+    ScratchDir dir;
+    json descriptor = descriptor_document();
+    descriptor["time_unit"] = "h";
+    write_descriptor_data(dir.path(), descriptor);
+    const auto result = validate_text(dir.path(), descriptor_config());
+    EXPECT_FALSE(result.workflow.has_value());
+    ASSERT_EQ(result.errors().size(), 1u) << result.report.to_text();
+    EXPECT_EQ(result.errors()[0].code, ErrorCode::INPUT_BINDING_INVALID);
+    EXPECT_EQ(result.errors()[0].location.pointer, "/time_unit");
+}
+
+TEST(Validation, ARowOfAnUnknownVariableIsTargetDataInvalidAtItsLine) {
+    ScratchDir dir;
+    write_descriptor_data(dir.path(), descriptor_document(),
+                          "series_id,variable_id,time,value\nS1,x,0.5,1\nS1,nope,0.5,2\n");
+    const auto result = validate_text(dir.path(), descriptor_config());
+    EXPECT_FALSE(result.workflow.has_value());
+    ASSERT_EQ(result.errors().size(), 1u) << result.report.to_text();
+    EXPECT_EQ(result.errors()[0].code, ErrorCode::TARGET_DATA_INVALID);
+    EXPECT_EQ(result.errors()[0].location.line, 3);
+    EXPECT_EQ(result.errors()[0].location.file, path_to_utf8(dir.path() / "data" / "obs.csv"));
+}
+
+TEST(Validation, ADescriptorWithBoundsAndNoTimeUnitGivesThreeWarningsAndStillValidates) {
+    ScratchDir dir;
+    json descriptor = descriptor_document();
+    descriptor.erase("time_unit");
+    descriptor["variables"][0]["upper_bound"] = 1;
+    write_descriptor_data(dir.path(), descriptor);
+    const auto result = validate_text(dir.path(), descriptor_config());
+    ASSERT_TRUE(result.workflow.has_value()) << result.report.to_text();
+    for (const Diagnostic& d : result.report.diagnostics) {
+        EXPECT_EQ(d.severity, Severity::warning) << d.message;
+        EXPECT_EQ(d.code, ErrorCode::TARGET_DATA_INVALID);
+    }
+    // No time unit, a value above its bound, and a row that is not delivered by role.
+    EXPECT_EQ(result.report.diagnostics.size(), 3u) << result.report.to_text();
+}
