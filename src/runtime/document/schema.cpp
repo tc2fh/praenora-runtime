@@ -1374,4 +1374,129 @@ std::vector<std::string> ignored_ref_siblings(const nlohmann::json& schema) {
     return found;
 }
 
+namespace {
+
+// The `$ref` strings anywhere in `node`.
+void collect_refs(const nlohmann::json& node, std::vector<std::string>& refs) {
+    if (node.is_object()) {
+        for (const auto& item : node.items()) {
+            if (item.key() == "$ref" && item.value().is_string()) {
+                refs.push_back(item.value().get<std::string>());
+            }
+            collect_refs(item.value(), refs);
+        }
+    } else if (node.is_array()) {
+        for (const auto& item : node) {
+            collect_refs(item, refs);
+        }
+    }
+}
+
+// The pointers of the entries of the root `$defs` of `schema` that a reference reaches, from
+// outside `$defs` or from an entry that is reached ("#/$defs/<name>", also into the entry). The
+// export inlines what is referenced and erases `$defs`, so the rest never appears in a document.
+std::set<std::string> reachable_defs(const nlohmann::json& schema) {
+    std::set<std::string> reached;
+    const auto defs = schema.find("$defs");
+    if (defs == schema.end() || !defs->is_object()) {
+        return reached;
+    }
+    std::vector<std::string> pending;
+    for (const auto& item : schema.items()) {
+        if (item.key() != "$defs") {
+            collect_refs(item.value(), pending);
+        }
+    }
+    constexpr std::string_view kPrefix = "#/$defs/";
+    while (!pending.empty()) {
+        const std::string ref = std::move(pending.back());
+        pending.pop_back();
+        if (ref.compare(0, kPrefix.size(), kPrefix) != 0) {
+            continue;
+        }
+        const std::size_t end = ref.find('/', kPrefix.size());
+        const std::string token =
+            ref.substr(kPrefix.size(), end == std::string::npos ? end : end - kPrefix.size());
+        std::string name = token;
+        for (std::size_t at; (at = name.find("~1")) != std::string::npos;) {
+            name.replace(at, 2, "/");
+        }
+        for (std::size_t at; (at = name.find("~0")) != std::string::npos;) {
+            name.replace(at, 2, "~");
+        }
+        const auto entry = defs->find(name);
+        if (entry != defs->end() && reached.insert("/$defs/" + json_pointer_escape(name)).second) {
+            collect_refs(*entry, pending);
+        }
+    }
+    return reached;
+}
+
+// Walks the subschemas of a 2020-12 `node` and records what AsyncAPI 3.0.0 cannot express. At the
+// root, `reachable` limits the entries of `$defs` that are looked at.
+void find_beyond_asyncapi(const nlohmann::json& node, const std::string& pointer,
+                          std::vector<std::string>& found, int depth,
+                          const std::set<std::string>* reachable = nullptr) {
+    if (!node.is_object()) {
+        return;
+    }
+    const std::string where = pointer.empty() ? "(root)" : pointer;
+    if (depth > kMaxSchemaDepth) {
+        found.push_back(where + " (nested deeper than " + std::to_string(kMaxSchemaDepth) +
+                        " levels)");
+        return;
+    }
+    static const char* const kUnsupported[] = {
+        "prefixItems",      "unevaluatedItems", "unevaluatedProperties", "dependentRequired",
+        "dependentSchemas", "$dynamicRef",      "$dynamicAnchor",        "$anchor",
+        "minContains",      "maxContains"};
+    for (const char* keyword : kUnsupported) {
+        if (node.contains(keyword)) {
+            found.push_back(where + " (" + keyword + ")");
+        }
+    }
+    // The export inlines a schema into a document that has other schemas: an identifier other
+    // than the root's would change what its references resolve against.
+    if (depth > 0 && node.contains("$id")) {
+        found.push_back(where + " ($id)");
+    }
+    // The AsyncAPI export follows a "$ref" and drops the keywords beside it.
+    if (node.contains("$ref")) {
+        std::string beside;
+        for (const auto& item : node.items()) {
+            const std::string& key = item.key();
+            if (key != "$ref" && key != "description" && key != "title" && key != "$comment" &&
+                key != "examples" && key != "$schema" && key != "$id") {
+                beside += (beside.empty() ? "" : ", ") + key;
+            }
+        }
+        if (!beside.empty()) {
+            found.push_back(where + " (" + beside + " beside $ref)");
+        }
+    }
+    for (const Child& child : subschemas(node, pointer, Dialect::draft202012, true)) {
+        if (depth == 0 && reachable != nullptr && child.pointer.rfind("/$defs/", 0) == 0 &&
+            reachable->count(child.pointer) == 0) {
+            continue;
+        }
+        try {
+            find_beyond_asyncapi(
+                node.at(nlohmann::json::json_pointer(child.pointer.substr(pointer.size()))),
+                child.pointer, found, depth + 1);
+        } catch (const nlohmann::json::exception&) {
+        }
+    }
+}
+
+} // namespace
+
+std::vector<std::string> beyond_asyncapi_subset(const nlohmann::json& schema) {
+    std::vector<std::string> found;
+    if (declared_dialect(schema) == Dialect::draft202012) {
+        const std::set<std::string> reachable = reachable_defs(schema);
+        find_beyond_asyncapi(schema, "", found, 0, &reachable);
+    }
+    return found;
+}
+
 } // namespace praenora::detail

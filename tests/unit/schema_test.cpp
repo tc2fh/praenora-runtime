@@ -296,6 +296,83 @@ TEST(Schema, KeywordsBesideReferenceFollowTheDialect) {
                     .empty());
 }
 
+// What the AsyncAPI export cannot express, in a 2020-12 schema: the keywords draft-07 lacks, found
+// at any depth, and keywords beside a $ref (the export drops them). Draft-07 schemas have none.
+TEST(Schema, KeywordsBeyondTheAsyncApiSubset) {
+    const std::string head = R"({"$schema": "https://json-schema.org/draft/2020-12/schema",)";
+    const auto beyond = [&](const std::string& body) {
+        return praenora::detail::beyond_asyncapi_subset(json::parse(head + body));
+    };
+    EXPECT_TRUE(beyond(R"("type": "object", "properties": {"a": {"type": "array",
+                          "items": {"$ref": "#/$defs/n", "description": "d"}}},
+                          "$defs": {"n": {"type": "number"}}})")
+                    .empty());
+    for (const char* keyword :
+         {R"("prefixItems": [{"type": "string"}])", R"("unevaluatedProperties": false)",
+          R"("unevaluatedItems": false)", R"("dependentRequired": {"a": ["b"]})",
+          R"("dependentSchemas": {"a": {"required": ["b"]}})", R"("$dynamicRef": "#x")",
+          R"("$dynamicAnchor": "x")", R"("$anchor": "x")", R"("minContains": 1)",
+          R"("maxContains": 1)"}) {
+        SCOPED_TRACE(keyword);
+        const auto found = beyond(std::string(R"("properties": {"deep": {"items": {)") + keyword +
+                                  "}}}}");
+        ASSERT_EQ(found.size(), 1u);
+        EXPECT_NE(found[0].find("/properties/deep/items ("), std::string::npos) << found[0];
+    }
+    const auto beside = beyond(R"("properties": {"p": {"$ref": "#/$defs/n", "maximum": 1}},
+                                 "$defs": {"n": {"type": "number"}}})");
+    ASSERT_EQ(beside.size(), 1u);
+    EXPECT_EQ(beside[0], "/properties/p (maximum beside $ref)");
+    // A name that is not a keyword, and the values of const, enum and default, are not looked at.
+    EXPECT_TRUE(beyond(R"("properties": {"prefixItems": {"type": "string"}},
+                          "default": {"$anchor": 1}, "const": {"dependentRequired": 1}})")
+                    .empty());
+    // Only the annotations title, description, $comment and examples may stand beside a $ref, also
+    // when the reference is not a string.
+    for (const char* keyword : {R"("deprecated": true)", R"("readOnly": true)", R"("default": 1)"}) {
+        SCOPED_TRACE(keyword);
+        const auto found = beyond(std::string(R"("properties": {"p": {"$ref": "#/$defs/n", )") + keyword +
+                                  R"(}}, "$defs": {"n": {"type": "number"}}})");
+        ASSERT_EQ(found.size(), 1u);
+        EXPECT_NE(found[0].find("beside $ref"), std::string::npos) << found[0];
+    }
+    EXPECT_EQ(beyond(R"("properties": {"p": {"$ref": 5, "maximum": 1}}})"),
+              std::vector<std::string>{"/properties/p (maximum beside $ref)"});
+    EXPECT_TRUE(beyond(R"("properties": {"p": {"$ref": "#/$defs/n", "title": "t", "description": "d",
+                          "$comment": "c", "examples": [1]}}, "$defs": {"n": {"type": "number"}}})")
+                    .empty());
+    // An $id other than the root's.
+    const auto ids = beyond(R"("$id": "urn:x:root", "properties": {"p": {"$id": "urn:x:inner"}}})");
+    ASSERT_EQ(ids.size(), 1u);
+    EXPECT_EQ(ids[0], "/properties/p ($id)");
+    // Nesting beyond the walk's limit is a violation, not a silent stop.
+    std::string deep = R"({"type": "string"})";
+    for (int i = 0; i < 300; ++i) {
+        deep = R"({"properties": {"p": )" + deep + "}}";
+    }
+    const auto too_deep = praenora::detail::beyond_asyncapi_subset(
+        json::parse(R"({"$schema": "https://json-schema.org/draft/2020-12/schema", "properties": {"p": )" +
+                    deep + "}}"));
+    ASSERT_EQ(too_deep.size(), 1u);
+    EXPECT_NE(too_deep[0].find("nested deeper than 256 levels"), std::string::npos) << too_deep[0];
+    // Entries of the root $defs that no reference reaches never appear in an export: they are not
+    // looked at. Reached ones are, through other entries too.
+    const std::string tuple = R"({"prefixItems": [{"type": "string"}]})";
+    EXPECT_TRUE(beyond(R"("$defs": {"unused": )" + tuple + R"(, "alsoUnused": {"$ref": "#/$defs/unused"}}})")
+                    .empty());
+    const auto reached = beyond(R"("properties": {"p": {"$ref": "#/$defs/a"}},
+                                  "$defs": {"a": {"properties": {"q": {"$ref": "#/$defs/b/properties/x"}}},
+                                            "b": {"properties": {"x": )" + tuple + R"(}},
+                                            "unused": )" + tuple + "}}");
+    ASSERT_EQ(reached.size(), 1u);
+    EXPECT_EQ(reached[0], "/$defs/b/properties/x (prefixItems)");
+    // Draft-07 (declared, or by default) has no such keywords, and ignores the siblings of $ref.
+    EXPECT_TRUE(praenora::detail::beyond_asyncapi_subset(
+                    json::parse(R"({"properties": {"p": {"$ref": "#/definitions/n", "maximum": 1}},
+                                    "definitions": {"n": {"type": "number"}}})"))
+                    .empty());
+}
+
 // A default in the schema a property points at is applied to the absent property, in both dialects.
 TEST(Schema, DefaultsBehindReferencesAreApplied) {
     const CompiledSchema draft07(json::parse(R"({

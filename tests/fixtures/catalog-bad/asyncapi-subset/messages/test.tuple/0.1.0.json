@@ -1,0 +1,25 @@
+{
+  "kind": "message-type",
+  "format_version": "0.1.0",
+  "id": "test.tuple",
+  "version": "0.1.0",
+  "status": "draft",
+  "summary": "A 2020-12 data schema that AsyncAPI 3.0.0 cannot express (tests).",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "pair": {
+        "type": "array",
+        "prefixItems": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          }
+        ]
+      }
+    }
+  }
+}

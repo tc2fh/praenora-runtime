@@ -89,6 +89,17 @@ void set_stack_percent_for_testing(int percent);
 // For tests only: the byte budget of a validation that stays on the caller's thread.
 std::size_t stack_inline_budget_for_testing();
 
+// What a 2020-12 `schema` uses that AsyncAPI 3.0.0 (draft-07 JSON Schema) cannot express, as
+// "<pointer> (<keywords>)": prefixItems, unevaluatedItems, unevaluatedProperties,
+// dependentRequired, dependentSchemas, $dynamicRef, $dynamicAnchor, $anchor, minContains,
+// maxContains, an `$id` other than the root's, nesting deeper than 256 levels, and keywords other
+// than title, description, $comment and examples beside a "$ref" (the export drops them). Entries
+// of the root `$defs` that no reference reaches are not looked at: the export inlines references and
+// erases `$defs`, so they never appear in a document. The schemas of message types and the
+// envelope are embedded in AsyncAPI documents, so the catalog refuses a message type whose schema
+// is in this list. Empty for a schema that is not 2020-12.
+std::vector<std::string> beyond_asyncapi_subset(const nlohmann::json& schema);
+
 } // namespace praenora::detail
 
 #endif // PRAENORA_RUNTIME_DOCUMENT_SCHEMA_HPP

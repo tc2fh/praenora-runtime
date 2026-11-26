@@ -134,6 +134,31 @@ TEST(Catalog, EntryViolatingItsSchemaIsSchemaViolation) {
     }
 }
 
+// A message type may declare 2020-12 (with $defs and a reference), as long as AsyncAPI 3.0.0 can
+// express it: the export inlines references and drops keywords beside them, and has no tuples.
+TEST(Catalog, MessageTypeSchemaMayBe202012) {
+    const Catalog catalog = Catalog::load({praenora::test::fixture_path("catalog-2020")});
+    const auto* type = catalog.find_message_type("test.modern", kV010);
+    ASSERT_NE(type, nullptr);
+    ASSERT_NE(type->compiled, nullptr);
+    EXPECT_TRUE(type->compiled->validate(json::parse(R"({"name": "x"})")).empty());
+    EXPECT_FALSE(type->compiled->validate(json::parse(R"({"name": ""})")).empty());
+    EXPECT_FALSE(type->compiled->validate(json::parse(R"({"name": 1})")).empty());
+}
+
+TEST(Catalog, MessageTypeSchemaBeyondAsyncApiIsSchemaViolation) {
+    try {
+        (void)Catalog::load({praenora::test::fixture_path("catalog-bad/asyncapi-subset")});
+        FAIL() << "expected SCHEMA_VIOLATION";
+    } catch (const Error& error) {
+        EXPECT_EQ(error.code(), ErrorCode::SCHEMA_VIOLATION);
+        const std::string message = error.what();
+        EXPECT_NE(message.find(": /properties/pair (prefixItems)"), std::string::npos) << message;
+        EXPECT_NE(error.location().file.find("0.1.0.json"), std::string::npos);
+        EXPECT_EQ(error.location().pointer, "/schema");
+    }
+}
+
 TEST(Catalog, UnknownMessageTypeReferenceReported) {
     const Catalog catalog =
         Catalog::load({praenora::test::fixture_path("catalog-bad/unknown-message-type")});

@@ -140,6 +140,14 @@ void Catalog::State::add(LoadedDocument document) {
                              std::string("the schema of the data does not compile: ") +
                                  error.what());
         }
+        const auto beyond = detail::beyond_asyncapi_subset(type.schema);
+        if (!beyond.empty()) {
+            schema_violation(document, "/schema",
+                             "the schema of the data uses what the AsyncAPI export cannot express "
+                             "(a 2020-12 schema of a message type stays within draft-07's keywords "
+                             "and annotations beside a $ref): " +
+                                 beyond.front());
+        }
         type.digest = digest;
         message_types.emplace(key, std::move(type));
     } else if (kind == kCapability) {

@@ -1,0 +1,27 @@
+{
+  "kind": "message-type",
+  "format_version": "0.1.0",
+  "id": "test.modern",
+  "version": "0.1.0",
+  "status": "draft",
+  "summary": "A 2020-12 data schema with $defs and a reference (tests).",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": [
+      "name"
+    ],
+    "properties": {
+      "name": {
+        "$ref": "#/$defs/name",
+        "description": "An annotation beside a reference is allowed."
+      }
+    },
+    "$defs": {
+      "name": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}
