@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:praenora:schema:fixture:0.1",
+  "title": "Draft-07 fixture of the migration script (test)",
+  "type": "object",
+  "properties": {
+    "definitions": {
+      "type": "object",
+      "$defs": {
+        "inner": {
+          "type": "integer"
+        }
+      },
+      "properties": {
+        "v": {
+          "$ref": "#/properties/definitions/$defs/inner"
+        }
+      }
+    },
+    "pair": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/n"
+        }
+      ],
+      "items": {
+        "type": "boolean"
+      }
+    },
+    "first": {
+      "$ref": "#/properties/pair/prefixItems/0"
+    },
+    "list": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/n",
+        "description": "An annotation is allowed beside a reference."
+      }
+    },
+    "dep": {
+      "$ref": "#/dependentSchemas/c"
+    },
+    "kept": {
+      "const": {
+        "definitions": {},
+        "items": [],
+        "dependencies": {}
+      },
+      "default": {
+        "$ref": "#/definitions/x"
+      }
+    }
+  },
+  "dependentRequired": {
+    "a": [
+      "b"
+    ]
+  },
+  "dependentSchemas": {
+    "c": {
+      "required": [
+        "d"
+      ],
+      "properties": {
+        "e": {
+          "$ref": "#/$defs/n"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "n": {
+      "type": "number"
+    }
+  }
+}

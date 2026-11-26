@@ -452,6 +452,10 @@ add_subdirectory(perf)
 # Documentation test (label docs): the documentation checked against the source tree (tests/docs).
 add_subdirectory(docs)
 
+# Tool tests (label tools): tools/migrate_schemas_to_2020_12.py and the schemas it wrote
+# (tests/tools).
+add_subdirectory(tools)
+
 # CI tooling tests (label ci): the script that fetches a pinned dependency bundle, run on fake
 # archives from file:// URLs, and the workflow checked against the pin and the CI presets
 # (tests/ci).
