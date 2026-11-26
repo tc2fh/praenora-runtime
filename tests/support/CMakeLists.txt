@@ -36,13 +36,15 @@ praenora_target_warnings(praenora_test_support)
 
 # praenora_whitebox_support: helpers for white-box tests, which see the runtime's internal headers
 # and dependencies (LogCapture; the header-only instance_fixtures.hpp for tests that drive module
-# instances and validation_fixtures.hpp for tests of the validation sequence). It never links the
+# instances, validation_fixtures.hpp for tests of the validation sequence and descriptor_fixtures.hpp
+# for those of the target descriptor). It never links the
 # object library itself; praenora_add_gtest(WHITEBOX) does, together with this library.
 add_library(praenora_whitebox_support STATIC
     log_capture.hpp
     log_capture.cpp
     instance_fixtures.hpp
-    validation_fixtures.hpp)
+    validation_fixtures.hpp
+    descriptor_fixtures.hpp)
 target_include_directories(praenora_whitebox_support PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "$<TARGET_PROPERTY:praenora_runtime_objects,INTERFACE_INCLUDE_DIRECTORIES>")

@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/ode-uq/0.0/target.schema.json",
+  "title": "Target data descriptor",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "name",
+    "data",
+    "columns",
+    "variables"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.0.0"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "id",
+        "href"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"
+        },
+        "href": {
+          "type": "string",
+          "minLength": 1
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$"
+        },
+        "role": {
+          "type": "string"
+        }
+      },
+      "patternProperties": {
+        "^x-": {}
+      },
+      "additionalProperties": false
+    },
+    "dialect": {
+      "type": "object",
+      "properties": {
+        "delimiter": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1
+        },
+        "quotechar": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1
+        },
+        "header": {
+          "const": true
+        },
+        "encoding": {
+          "const": "UTF-8"
+        },
+        "missing_token": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "columns": {
+      "type": "object",
+      "required": [
+        "series_id",
+        "variable_id",
+        "time",
+        "value"
+      ],
+      "properties": {
+        "series_id": {
+          "type": "string"
+        },
+        "variable_id": {
+          "type": "string"
+        },
+        "time": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "observation_id": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "missing": {
+          "type": "string"
+        },
+        "censoring": {
+          "type": "string"
+        },
+        "lower_limit": {
+          "type": "string"
+        },
+        "upper_limit": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "string"
+        },
+        "group_id": {
+          "type": "string"
+        },
+        "batch_id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "time_unit": {
+      "type": "string"
+    },
+    "variables": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "unit",
+          "value_type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "value_type": {
+            "const": "scalar"
+          },
+          "role": {
+            "enum": [
+              "response",
+              "covariate",
+              "input",
+              "validation"
+            ]
+          },
+          "lower_bound": {
+            "type": "number"
+          },
+          "upper_bound": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "duplicate_policy": {
+      "enum": [
+        "require_observation_id",
+        "aggregate_mean",
+        "aggregate_median",
+        "error"
+      ]
+    }
+  },
+  "patternProperties": {
+    "^x-": {}
+  },
+  "additionalProperties": false
+}

@@ -613,7 +613,8 @@ TEST(Resources, EmbeddedIndexListsPrefix) {
 TEST(Resources, RuntimeIndexIsConsistent) {
     for (const auto& path : praenora::detail::list_embedded_resources("")) {
         SCOPED_TRACE(path);
-        EXPECT_TRUE(path.rfind("schemas/", 0) == 0 || path.rfind("catalog/", 0) == 0);
+        EXPECT_TRUE(path.rfind("schemas/", 0) == 0 || path.rfind("catalog/", 0) == 0 ||
+                    path.rfind("ode-uq/", 0) == 0);
         const auto bytes = praenora::detail::find_embedded_resource(path);
         ASSERT_TRUE(bytes.has_value());
         EXPECT_FALSE(bytes->empty());

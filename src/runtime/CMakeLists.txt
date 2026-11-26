@@ -50,6 +50,7 @@ add_library(praenora_runtime_objects OBJECT
     io/observation_csv_source.cpp
     io/output_recorder.cpp
     io/run_record.cpp
+    io/target_descriptor.cpp
     io/trace_writer.cpp
     loader/library_file.cpp
     loader/library_gate.cpp
@@ -107,14 +108,16 @@ if(MSVC)
 endif()
 
 # The schemas and the protocol catalog are embedded in the runtime (document/resources.hpp):
-# spec/schemas/*.json under schemas/ and spec/catalog/**/*.json under catalog/. The globs are
+# spec/schemas/*.json under schemas/, spec/catalog/**/*.json under catalog/ and spec/ode-uq/*.json
+# (schemas of the ode-uq-spec, kept as published) under ode-uq/. The globs are
 # re-checked at build time, so added or removed files take effect without a manual reconfigure.
 file(GLOB _praenora_schema_files CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/spec/schemas/*.json")
 file(GLOB_RECURSE _praenora_catalog_files CONFIGURE_DEPENDS
     "${PROJECT_SOURCE_DIR}/spec/catalog/*.json")
+file(GLOB _praenora_odeuq_files CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/spec/ode-uq/*.json")
 praenora_embed_resources(TARGET praenora_runtime_objects NAME praenora_runtime
     BASE_DIR "${PROJECT_SOURCE_DIR}/spec"
-    FILES ${_praenora_schema_files} ${_praenora_catalog_files})
+    FILES ${_praenora_schema_files} ${_praenora_catalog_files} ${_praenora_odeuq_files})
 
 # Build facts reported by praenora::version_info() (api/version.cpp). They are target-level
 # definitions because some generators (Xcode) cannot vary per-source settings by configuration.

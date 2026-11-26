@@ -172,6 +172,7 @@ praenora_add_gtest(praenora_unit_tests LABEL unit WHITEBOX
         unit/config_test.cpp
         unit/csv_test.cpp
         unit/input_source_test.cpp
+        unit/target_descriptor_test.cpp
         unit/fingerprint_test.cpp
         unit/metrics_test.cpp
         unit/status_file_test.cpp
